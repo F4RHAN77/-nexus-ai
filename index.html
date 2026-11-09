@@ -6,34 +6,66 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NEXUS AI</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#090d18;color:white;font-family:Arial,sans-serif;text-align:center}
-header{padding:22px;font-size:25px;font-weight:bold;color:#70a5ff}
-main{padding:90px 20px 40px}
-h1{font-size:42px;margin-bottom:15px}
-h1 span{color:#70a5ff}
-p{color:#b5bfd2;font-size:16px;line-height:1.7}
-button{margin-top:28px;padding:14px 30px;border:0;border-radius:10px;background:#3978f6;color:white;font-size:16px}
-.features{margin:55px auto;display:flex;flex-wrap:wrap;gap:15px;justify-content:center}
-.card{background:#151d30;padding:25px;border-radius:14px;width:145px}
-footer{padding:25px;color:#8994aa}
+*{box-sizing:border-box}
+body{margin:0;background:#0b0d12;color:white;font-family:Arial,sans-serif}
+header{height:65px;padding:15px 20px;border-bottom:1px solid #252936;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:23px;font-weight:bold;color:#8b9cff}
+.logo span{color:white}
+.status{font-size:12px;color:#72e5a1}
+main{max-width:800px;margin:auto;height:calc(100dvh - 130px);display:flex;flex-direction:column;padding:20px}
+.welcome{text-align:center;margin:auto 0}
+.welcome h1{font-size:32px;margin-bottom:10px}
+.welcome p{color:#9299aa}
+#messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:15px}
+.msg{padding:13px 16px;border-radius:15px;max-width:85%;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.user{background:#394b9b;align-self:flex-end}
+.bot{background:#1b202b;align-self:flex-start}
+.input-area{display:flex;gap:10px;padding:12px;border:1px solid #303747;border-radius:15px;background:#151923}
+input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:white;font-size:16px}
+button{background:#7185ff;border:0;border-radius:10px;padding:12px 17px;color:white;font-weight:bold}
+button:active{opacity:.7}
+.note{text-align:center;color:#777f91;font-size:11px;margin-top:10px}
 </style>
 </head>
 <body>
-<header>✦ NEXUS AI</header>
+<header>
+<div class="logo">NEXUS <span>AI</span></div>
+<div class="status">● Demo Mode</div>
+</header>
 <main>
-<h1>One Platform.<br><span>Infinite Possibilities.</span></h1>
-<p>Your personal AI assistant for chatting, coding, learning and creating.</p>
-<button onclick="alert('NEXUS AI is coming soon!')">Get Started</button>
-<div class="features">
-<div class="card">🤖<br>AI Chat</div>
-<div class="card">💻<br>AI Coding</div>
-<div class="card">📄<br>PDF Assistant</div>
-<div class="card">🌐<br>Translator</div>
-<div class="card">🎨<br>AI Images</div>
-<div class="card">🎙️<br>Voice AI</div>
+<div class="welcome" id="welcome">
+<h1>Welcome to NEXUS AI</h1>
+<p>Your intelligent assistant starts here.</p>
 </div>
+<div id="messages"></div>
+<div class="input-area">
+<input id="prompt" placeholder="Message NEXUS AI..." autocomplete="off">
+<button onclick="sendMessage()">Send ➤</button>
+</div>
+<div class="note">NEXUS AI • Preview Version</div>
 </main>
-<footer>© 2026 NEXUS AI | Built for Everyone</footer>
+<script>
+const input=document.getElementById("prompt");
+const messages=document.getElementById("messages");
+function sendMessage(){
+const value=input.value.trim();
+if(!value)return;
+document.getElementById("welcome").style.display="none";
+const user=document.createElement("div");
+user.className="msg user";
+user.textContent=value;
+messages.appendChild(user);
+const bot=document.createElement("div");
+bot.className="msg bot";
+bot.textContent="Welcome to NEXUS AI! Your chat interface is working. AI connection is not enabled yet. We will connect the AI brain in the next stage.";
+messages.appendChild(bot);
+input.value="";
+messages.scrollTop=messages.scrollHeight;
+}
+input.addEventListener("keydown",e=>{
+if(e.key==="Enter")sendMessage();
+});
+</script>
 </body>
 </html>
+
