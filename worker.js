@@ -19,7 +19,19 @@ export default {
     }
 
     try {
-      if (!env.AI) {
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+
+const { success } = await env.MY_RATE_LIMITER.limit({
+  key: ip
+});
+
+if (!success) {
+  return Response.json(
+    { error: "Too many requests. Please try again later." },
+    { status: 429, headers: corsHeaders }
+  );
+}
+     if (!env.AI) {
         throw new Error("AI binding is not configured");
       }
 
