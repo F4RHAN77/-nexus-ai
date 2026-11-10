@@ -1,3 +1,4 @@
+
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nexus-ai",
@@ -5,5 +6,15 @@
   "compatibility_date": "2026-11-10",
   "ai": {
     "binding": "AI"
-  }
+  },
+  "ratelimits": [
+    {
+      "name": "MY_RATE_LIMITER",
+      "namespace_id": "20261110",
+      "simple": {
+        "limit": 20,
+        "period": 60
+      }
+    }
+  ]
 }
