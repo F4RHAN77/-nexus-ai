@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,14 +23,14 @@ main{max-width:800px;margin:auto;height:calc(100dvh - 130px);display:flex;flex-d
 .input-area{display:flex;gap:10px;padding:12px;border:1px solid #303747;border-radius:15px;background:#151923}
 input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:white;font-size:16px}
 button{background:#7185ff;border:0;border-radius:10px;padding:12px 17px;color:white;font-weight:bold}
-button:active{opacity:.7}
+button:disabled{opacity:.5}
 .note{text-align:center;color:#777f91;font-size:11px;margin-top:10px}
 </style>
 </head>
 <body>
 <header>
 <div class="logo">NEXUS <span>AI</span></div>
-<div class="status">● Demo Mode</div>
+<div class="status">● Cloud AI</div>
 </header>
 <main>
 <div class="welcome" id="welcome">
@@ -39,32 +40,69 @@ button:active{opacity:.7}
 <div id="messages"></div>
 <div class="input-area">
 <input id="prompt" placeholder="Message NEXUS AI..." autocomplete="off">
-<button onclick="sendMessage()">Send ➤</button>
+<button id="send" onclick="sendMessage()">Send ➤</button>
 </div>
-<div class="note">NEXUS AI • Preview Version</div>
+<div class="note">NEXUS AI • AI Preview Version</div>
 </main>
 <script>
-const input=document.getElementById("prompt");
-const messages=document.getElementById("messages");
-function sendMessage(){
-const value=input.value.trim();
-if(!value)return;
-document.getElementById("welcome").style.display="none";
-const user=document.createElement("div");
-user.className="msg user";
-user.textContent=value;
-messages.appendChild(user);
-const bot=document.createElement("div");
-bot.className="msg bot";
-bot.textContent="Welcome to NEXUS AI! Your chat interface is working. AI connection is not enabled yet. We will connect the AI brain in the next stage.";
-messages.appendChild(bot);
-input.value="";
-messages.scrollTop=messages.scrollHeight;
+const API_URL = "https://nexus-ai.pagalkudi14447-6d9.workers.dev";
+
+const input = document.getElementById("prompt");
+const messages = document.getElementById("messages");
+const send = document.getElementById("send");
+
+function addMessage(text, type) {
+const msg = document.createElement("div");
+msg.className = "msg " + type;
+msg.textContent = text;
+messages.appendChild(msg);
+messages.scrollTop = messages.scrollHeight;
+return msg;
 }
-input.addEventListener("keydown",e=>{
-if(e.key==="Enter")sendMessage();
+
+async function sendMessage() {
+const value = input.value.trim();
+if (!value || send.disabled) return;
+
+document.getElementById("welcome").style.display = "none";
+
+addMessage(value, "user");
+input.value = "";
+send.disabled = true;
+send.textContent = "Wait...";
+
+const bot = addMessage("NEXUS AI is thinking...", "bot");
+
+try {
+const response = await fetch(API_URL, {
+method: "POST",
+headers: {
+"Content-Type": "application/json"
+},
+body: JSON.stringify({ message: value })
+});
+
+const data = await response.json();
+
+if (!response.ok) {
+throw new Error(data.details || data.error || "Server error");
+}
+
+bot.textContent = data.reply || "No response received.";
+
+} catch (error) {
+bot.textContent = "Connection error: " + error.message;
+}
+
+send.disabled = false;
+send.textContent = "Send ➤";
+input.focus();
+messages.scrollTop = messages.scrollHeight;
+}
+
+input.addEventListener("keydown", event => {
+if (event.key === "Enter") sendMessage();
 });
 </script>
 </body>
 </html>
-
