@@ -58,7 +58,7 @@ export default {
       );
 
       return Response.json(
-        { reply: result.response || "No response generated." },
+        { reply: result.choices?.[0]?.message?.content || result.response || "No response generated." },
         { headers: corsHeaders }
       );
 
