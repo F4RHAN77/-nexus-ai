@@ -1,1 +1,9 @@
-
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nexus-ai",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-10",
+  "ai": {
+    "binding": "AI"
+  }
+}
