@@ -65,7 +65,7 @@ if (!success) {
               content: message.trim()
             }
           ],
-          max_tokens: 512
+          max_tokens: 2048
         }
       );
 
