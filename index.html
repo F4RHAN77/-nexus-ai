@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NEXUS AI</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#212121;color:white;font-family:Arial}
@@ -35,6 +38,45 @@ textarea{flex:1;background:transparent;border:0;outline:0;color:white;font-size:
 .send{background:#72e5a1;color:#111;border:0;border-radius:50%;width:38px;height:38px;font-size:20px}
 .note{text-align:center;color:#888;font-size:11px;margin-top:10px}
 .overlay{display:none}
+.pdf-modal{
+display:none;
+position:fixed;
+inset:0;
+z-index:20;
+background:#000b;
+align-items:center;
+justify-content:center;
+padding:20px;
+}
+.pdf-box{
+width:100%;
+max-width:420px;
+background:#252525;
+padding:22px;
+border-radius:14px;
+}
+.pdf-box h2{margin-top:0}
+.pdf-box textarea{
+width:100%;
+min-height:100px;
+background:#333;
+border:1px solid #555;
+border-radius:8px;
+padding:10px;
+}
+.pdf-actions{
+display:flex;
+gap:10px;
+margin-top:15px;
+}
+.pdf-actions button{
+padding:11px;
+border:0;
+border-radius:8px;
+font-weight:bold;
+}
+.pdf-generate{background:#72e5a1;color:#111;flex:1}
+.pdf-cancel{background:#444;color:white}
 @media(max-width:650px){
 .sidebar{position:fixed;z-index:10;top:0;bottom:0;left:-280px;width:260px;transition:left .2s}
 .sidebar.open{left:0}
@@ -44,6 +86,16 @@ textarea{flex:1;background:transparent;border:0;outline:0;color:white;font-size:
 </head>
 <body>
 <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+<div class="pdf-modal" id="pdfModal">
+  <div class="pdf-box">
+    <h2>Create PDF</h2>
+    <textarea id="pdfTopic" placeholder="PDF kis topic par banana hai?"></textarea>
+    <div class="pdf-actions">
+      <button class="pdf-generate" onclick="generatePDF()">Generate PDF</button>
+      <button class="pdf-cancel" onclick="closePDF()">Cancel</button>
+    </div>
+  </div>
+</div>
 <div class="app">
 
 <aside class="sidebar" id="sidebar">
@@ -60,6 +112,11 @@ textarea{flex:1;background:transparent;border:0;outline:0;color:white;font-size:
 <header class="topbar">
 <button class="menu" onclick="toggleSidebar()">☰</button>
 <b>NEXUS AI</b>
+
+<button onclick="openPDF()" style="background:#72e5a1;color:#111;border:0;padding:9px 12px;border-radius:8px;font-weight:bold">
+PDF
+</button>
+
 <div class="status">● Online</div>
 </header>
 
@@ -92,7 +149,67 @@ const overlay=document.getElementById("overlay");
 let chats=[];
 try{chats=JSON.parse(localStorage.getItem("nexus_chats")||"[]");if(!Array.isArray(chats))chats=[];}catch(e){chats=[];}
 let currentId=null;
+function openPDF(){
+document.getElementById("pdfModal").style.display="flex";
+}
 
+function closePDF(){
+document.getElementById("pdfModal").style.display="none";
+}
+
+async function generatePDF(){
+const topic=document.getElementById("pdfTopic").value.trim();
+
+if(!topic){
+alert("PDF ka topic likho");
+return;
+}
+
+const btn=document.querySelector(".pdf-generate");
+btn.disabled=true;
+btn.textContent="Creating...";
+
+try{
+const response=await fetch(API_URL,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+message:"Create clear, well-organized educational notes in English on: "+topic+". Use headings, paragraphs and bullet points. Keep it suitable for a PDF document."
+})
+});
+
+const data=await response.json();
+if(!response.ok)throw new Error(data.error||"AI request failed");
+
+const {jsPDF}=window.jspdf;
+const doc=new jsPDF();
+const lines=doc.splitTextToSize(data.reply||"No content generated.",180);
+let y=20;
+
+doc.setFontSize(18);
+doc.text(topic,15,y);
+y+=12;
+doc.setFontSize(11);
+
+lines.forEach(line=>{
+if(y>280){
+doc.addPage();
+y=20;
+}
+doc.text(line,15,y);
+y+=7;
+});
+
+doc.save(topic.replace(/[^a-z0-9]/gi,"_")+".pdf");
+closePDF();
+
+}catch(error){
+alert("PDF Error: "+error.message);
+}
+
+btn.disabled=false;
+btn.textContent="Generate PDF";
+}
 function save(){
 localStorage.setItem("nexus_chats",JSON.stringify(chats));
 }
