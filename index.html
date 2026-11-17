@@ -211,6 +211,91 @@ alert("PDF Error: "+error.message);
 btn.disabled=false;
 btn.textContent="Generate PDF";
 }
+function openPPT(){
+document.getElementById("pptModal").style.display="flex";
+}
+
+function closePPT(){
+document.getElementById("pptModal").style.display="none";
+}
+
+async function generatePPT(){
+const topic=document.getElementById("pptTopic").value.trim();
+
+if(!topic){
+alert("PPT ka topic likho");
+return;
+}
+
+const btn=document.querySelector(".ppt-generate");
+btn.disabled=true;
+btn.textContent="Creating...";
+
+try{
+const response=await fetch(API_URL,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+message:"Create a PowerPoint presentation about "+topic+". Make exactly 7 slides. Use this format strictly: SLIDE 1: Title followed by bullet points on separate lines. Continue up to SLIDE 7. Keep the content educational, clear and concise."
+})
+});
+
+const data=await response.json();
+if(!response.ok)throw new Error(data.error||"AI request failed");
+
+const pptx=new pptxgen();
+pptx.layout="LAYOUT_WIDE";
+pptx.author="NEXUS AI";
+pptx.subject=topic;
+pptx.title=topic;
+pptx.theme={
+headFontFace:"Arial",
+bodyFontFace:"Arial",
+lang:"en-US"
+};
+
+const sections=(data.reply||"").split(/SLIDE\s+\d+\s*:/i).filter(s=>s.trim());
+
+sections.slice(0,7).forEach((section,index)=>{
+const slide=pptx.addSlide();
+const lines=section.trim().split("\n").filter(line=>line.trim());
+const title=lines.shift()||"Slide "+(index+1);
+
+slide.background={color:"17212B"};
+slide.addText(title,{
+x:0.6,y:0.5,w:12,h:0.8,
+fontFace:"Arial",fontSize:26,bold:true,
+color:"72E5A1"
+});
+
+slide.addText(lines.join("\n"),{
+x:0.8,y:1.7,w:11.5,h:5,
+fontFace:"Arial",fontSize:19,
+color:"FFFFFF",
+breakLine:false,
+bullet:{indent:18},
+paraSpaceAfterPt:12,
+valign:"top"
+});
+});
+
+if(sections.length===0){
+throw new Error("AI ne slide format generate nahi kiya. Dobara try karo.");
+}
+
+await pptx.writeFile({
+fileName:topic.replace(/[^a-z0-9]/gi,"_")+".pptx"
+});
+
+closePPT();
+
+}catch(error){
+alert("PPT Error: "+error.message);
+}
+
+btn.disabled=false;
+btn.textContent="Generate PPT";
+}
 function save(){
 localStorage.setItem("nexus_chats",JSON.stringify(chats));
 }
