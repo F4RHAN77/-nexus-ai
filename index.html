@@ -1,404 +1,803 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NEXUS AI</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 
 <style>
+:root {
+  --bg:#080d20;
+  --panel:#10162d;
+  --panel2:#17172d;
+  --purple:#7138d8;
+  --blue:#3155d9;
+  --text:#f4f5ff;
+  --muted:#9ba4c4;
+  --border:rgba(255,255,255,.09);
+}
 *{box-sizing:border-box}
-body{margin:0;background:#212121;color:white;font-family:Arial}
-.app{display:flex;height:100dvh}
-.sidebar{width:260px;background:#171717;padding:15px;display:flex;flex-direction:column;flex-shrink:0}
-.brand{font-size:23px;font-weight:bold;margin:15px 5px 25px}
-.brand span{color:#72e5a1}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:Inter,Arial,sans-serif;height:100vh;overflow:hidden;
+}
+button,input,textarea{font:inherit}
 button{cursor:pointer}
-.close-menu{background:#303030;color:white;border:0;padding:12px;border-radius:8px;text-align:left;margin-bottom:10px}
-.newchat{padding:13px;background:#292929;border:1px solid #444;color:white;border-radius:10px;text-align:left}
-.history{margin-top:25px;overflow:auto;flex:1}
-.history-title{font-size:12px;color:#999;margin:10px}
-.chat-item{padding:12px;border-radius:8px;cursor:pointer;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chat-item:hover,.chat-item.active{background:#303030}
-.main{flex:1;display:flex;flex-direction:column;min-width:0}
-.topbar{height:60px;display:flex;align-items:center;padding:0 18px;border-bottom:1px solid #333;gap:15px;flex-shrink:0}
-.menu{background:none;border:0;color:white;font-size:23px}
-.status{margin-left:auto;color:#72e5a1;font-size:12px}
-.messages{flex:1;overflow-y:auto;padding:25px 16px}
-.welcome{text-align:center;margin:18vh auto 0}
-.welcome h1{font-size:28px}
-.welcome p{color:#aaa}
-.msg{max-width:780px;margin:20px auto;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
-.user{background:#303030;padding:13px 17px;border-radius:18px;width:fit-content;margin-left:auto;max-width:85%}
-.bot{padding:8px 3px}
-.input-wrap{max-width:800px;width:100%;margin:auto;padding:10px 15px 20px}
-.inputbox{display:flex;align-items:flex-end;background:#303030;border:1px solid #555;border-radius:22px;padding:10px;gap:8px}
-textarea{flex:1;background:transparent;border:0;outline:0;color:white;font-size:16px;resize:none;max-height:140px;min-height:28px;font-family:Arial;padding:5px}
-.send{background:#72e5a1;color:#111;border:0;border-radius:50%;width:38px;height:38px;font-size:20px}
-.note{text-align:center;color:#888;font-size:11px;margin-top:10px}
-.overlay{display:none}
-.pdf-modal{
-display:none;
-position:fixed;
-inset:0;
-z-index:20;
-background:#000b;
-align-items:center;
-justify-content:center;
-padding:20px;
+.app{display:flex;height:100vh;width:100%}
+.sidebar{
+  width:270px;min-width:270px;background:#0c1228;
+  border-right:1px solid var(--border);padding:20px;
+  display:flex;flex-direction:column;z-index:5;
 }
-.pdf-box{
-width:100%;
-max-width:420px;
-background:#252525;
-padding:22px;
-border-radius:14px;
+.brand{display:flex;align-items:center;gap:11px;margin-bottom:28px}
+.logo{
+  width:40px;height:40px;border-radius:13px;
+  display:grid;place-items:center;font-weight:900;font-size:20px;
+  background:linear-gradient(135deg,var(--purple),var(--blue));
+  box-shadow:0 5px 25px #7138d855;
 }
-.pdf-box h2{margin-top:0}
-.pdf-box textarea{
-width:100%;
-min-height:100px;
-background:#333;
-border:1px solid #555;
-border-radius:8px;
-padding:10px;
+.brand-name{font-size:19px;font-weight:800;letter-spacing:1px}
+.brand-name span{color:#9c7bff}
+.new-chat{
+  width:100%;padding:13px;border:1px solid #7650d8;
+  border-radius:12px;color:white;
+  background:linear-gradient(110deg,#7138d8,#3155d9);
+  font-weight:700;margin-bottom:25px;
 }
-.pdf-actions{
-display:flex;
-gap:10px;
-margin-top:15px;
+.side-label{font-size:11px;color:var(--muted);letter-spacing:1.5px;margin:8px 0 12px}
+.history{overflow-y:auto;flex:1}
+.history-item{
+  padding:11px 12px;border-radius:10px;color:#c9cce0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  cursor:pointer;margin-bottom:5px;font-size:13px;
 }
-.pdf-actions button{
-padding:11px;
-border:0;
-border-radius:8px;
-font-weight:bold;
+.history-item:hover,.history-item.active{background:#202744;color:white}
+.side-bottom{border-top:1px solid var(--border);padding-top:15px}
+.side-note{font-size:11px;color:var(--muted);line-height:1.6}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;position:relative}
+.topbar{
+  height:68px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 25px;border-bottom:1px solid var(--border);
+  background:rgba(8,13,32,.8);
 }
-.pdf-generate{background:#72e5a1;color:#111;flex:1}
-.pdf-cancel{background:#444;color:white}
-@media(max-width:650px){
-.sidebar{position:fixed;z-index:10;top:0;bottom:0;left:-280px;width:260px;transition:left .2s}
-.sidebar.open{left:0}
-.overlay.show{display:block;position:fixed;inset:0;background:#0009;z-index:9}
+.top-left,.top-actions{display:flex;align-items:center;gap:12px}
+.top-title{font-size:14px;font-weight:700}
+.icon-btn,.small-btn{
+  border:1px solid var(--border);background:#151c37;color:#e8eaff;
+  border-radius:10px;padding:9px 12px;
+}
+.icon-btn{font-size:18px}
+.small-btn{font-size:12px}
+.small-btn:hover,.icon-btn:hover{background:#252d50}
+.status{font-size:11px;color:#9eebc2}
+.chat-area{
+  flex:1;overflow-y:auto;padding:30px 18px 150px;
+  scroll-behavior:smooth;
+}
+.welcome{max-width:760px;margin:8vh auto 0;text-align:center}
+.welcome-logo{
+  width:74px;height:74px;margin:auto auto 22px;border-radius:23px;
+  display:grid;place-items:center;font-size:34px;font-weight:900;
+  background:linear-gradient(135deg,var(--purple),var(--blue));
+  box-shadow:0 10px 45px #7138d844;
+}
+.welcome h1{font-size:34px;margin:0 0 12px}
+.gradient-text{
+  background:linear-gradient(90deg,#a47aff,#5b8bff);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.welcome p{color:var(--muted);font-size:14px;line-height:1.7}
+.suggestions{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;margin-top:32px;text-align:left;
+}
+.suggestion{
+  padding:16px;border:1px solid var(--border);border-radius:14px;
+  background:linear-gradient(135deg,#141b36,#11162b);
+  color:#e9eaff;font-size:13px;line-height:1.5;
+}
+.suggestion:hover{border-color:#7650d8;background:#1b2040}
+.suggestion strong{display:block;margin-bottom:5px}
+.messages{max-width:850px;margin:auto}
+.message{display:flex;gap:12px;margin:0 auto 25px;align-items:flex-start}
+.avatar{
+  flex:0 0 34px;width:34px;height:34px;border-radius:11px;
+  display:grid;place-items:center;font-size:13px;font-weight:800;
+  background:#222b4b;
+}
+.message.assistant .avatar{background:linear-gradient(135deg,var(--purple),var(--blue))}
+.message-body{min-width:0;flex:1}
+.message-head{font-size:12px;color:#aeb6d4;margin:3px 0 9px}
+.message-text{font-size:14px;line-height:1.8;color:#e8eaff;overflow-wrap:anywhere}
+.message-text p{margin:0 0 10px}
+.message-text h1,.message-text h2,.message-text h3{color:white;margin:16px 0 8px}
+.message-text ul,.message-text ol{padding-left:22px}
+.message-text code{
+  background:#242b49;padding:2px 5px;border-radius:5px;
+  font-family:monospace;font-size:13px;
+}
+.code-wrap{background:#090e20;border:1px solid var(--border);border-radius:12px;margin:12px 0;overflow:hidden}
+.code-head{display:flex;justify-content:space-between;padding:9px 12px;background:#151c35;color:#aeb6d4;font-size:11px}
+.code-wrap pre{padding:14px;margin:0;overflow:auto;color:#d9dcff;font-size:12px;line-height:1.6}
+.message-tools{display:flex;gap:8px;margin-top:10px}
+.tool-btn{
+  background:transparent;color:#9da7ca;border:1px solid var(--border);
+  border-radius:8px;padding:6px 9px;font-size:11px;
+}
+.tool-btn:hover{color:white;background:#202744}
+.composer-wrap{
+  position:absolute;bottom:0;left:0;right:0;padding:20px 18px 14px;
+  background:linear-gradient(transparent,#080d20 22%);
+}
+.composer{max-width:850px;margin:auto}
+.input-box{
+  display:flex;align-items:flex-end;gap:10px;padding:12px;
+  border:1px solid #343b63;border-radius:18px;
+  background:#131a33;box-shadow:0 10px 40px #0005;
+}
+#userInput{
+  flex:1;resize:none;min-height:28px;max-height:150px;
+  border:0;outline:0;background:transparent;color:white;
+  font-size:14px;line-height:1.6;
+}
+#userInput::placeholder{color:#818bab}
+.send-btn{
+  width:40px;height:40px;border:0;border-radius:12px;color:white;
+  background:linear-gradient(135deg,var(--purple),var(--blue));
+  font-size:18px;font-weight:bold;
+}
+.send-btn:disabled{opacity:.5;cursor:not-allowed}
+.composer-note{text-align:center;color:#7782a6;font-size:10px;margin-top:10px}
+.overlay{
+  display:none;position:fixed;inset:0;background:#0009;z-index:4;
+}
+.modal{
+  display:none;position:fixed;inset:0;z-index:10;
+  background:#000b;align-items:center;justify-content:center;padding:16px;
+}
+.modal-box{
+  width:100%;max-width:470px;max-height:90vh;overflow:auto;
+  padding:23px;border-radius:18px;background:#121a35;
+  border:1px solid #45406d;box-shadow:0 20px 80px #0009;
+}
+.modal-box h2{font-size:20px;margin:0 0 8px}
+.modal-box p{font-size:12px;color:var(--muted);line-height:1.6}
+.field-label{display:block;font-size:12px;color:#c4c9e0;margin:17px 0 7px}
+.field{
+  width:100%;padding:12px;border-radius:10px;
+  border:1px solid var(--border);background:#0b1229;color:white;outline:none;
+}
+.modal-actions{display:flex;gap:10px;margin-top:22px}
+.modal-actions button{flex:1;padding:12px;border-radius:10px;border:0;font-weight:700}
+.primary{color:white;background:linear-gradient(110deg,var(--purple),var(--blue))}
+.secondary{color:#dfe2ff;background:#252d4d}
+.notice{font-size:11px;color:#aeb6d4;margin-top:12px;line-height:1.6}
+@media(max-width:700px){
+  .sidebar{
+    position:fixed;left:-285px;top:0;bottom:0;
+    transition:left .25s ease;width:270px;
+  }
+  .sidebar.open{left:0}
+  .overlay.show{display:block}
+  .topbar{padding:0 13px;height:60px}
+  .top-actions{gap:6px}
+  .small-btn{padding:8px;font-size:11px}
+  .chat-area{padding:22px 13px 150px}
+  .welcome{margin-top:7vh}
+  .welcome h1{font-size:27px}
+  .suggestions{grid-template-columns:1fr}
+  .composer-wrap{padding:15px 12px 10px}
 }
 </style>
 </head>
+
 <body>
-<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
-<div class="pdf-modal" id="pdfModal">
-  <div class="pdf-box">
-    <h2>Create PDF</h2>
-    <textarea id="pdfTopic" placeholder="PDF kis topic par banana hai?"></textarea>
-    <div class="pdf-actions">
-      <button class="pdf-generate" onclick="generatePDF()">Generate PDF</button>
-      <button class="pdf-cancel" onclick="closePDF()">Cancel</button>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="brand-name">NEXUS <span>AI</span></div>
+    </div>
+
+    <button class="new-chat" id="newChatBtn">＋ New Chat</button>
+
+    <div class="side-label">YOUR CONVERSATIONS</div>
+    <div class="history" id="historyList"></div>
+
+    <div class="side-bottom">
+      <div class="side-note">NEXUS AI · Your intelligent assistant<br>Version 1.0</div>
+    </div>
+  </aside>
+
+  <div class="overlay" id="overlay"></div>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="top-left">
+        <button class="icon-btn" id="menuBtn" aria-label="Open menu">☰</button>
+        <div class="top-title">NEXUS AI</div>
+        <span class="status">● Online</span>
+      </div>
+      <div class="top-actions">
+        <button class="small-btn" id="pdfBtn">PDF</button>
+        <button class="small-btn" id="pptBtn">PPT</button>
+      </div>
+    </header>
+
+    <section class="chat-area" id="chatArea">
+      <div class="welcome" id="welcome">
+        <div class="welcome-logo">N</div>
+        <h1>Welcome to <span class="gradient-text">NEXUS AI</span></h1>
+        <p>Your AI workspace for learning, ideas, writing and productivity.<br>What would you like to explore today?</p>
+        <div class="suggestions">
+          <button class="suggestion" data-prompt="Explain artificial intelligence in simple words.">
+            <strong>✦ Learn something</strong>Explain a difficult topic in simple words.
+          </button>
+          <button class="suggestion" data-prompt="Help me create a professional presentation outline.">
+            <strong>▤ Create a presentation</strong>Build a clear presentation outline.
+          </button>
+          <button class="suggestion" data-prompt="Help me write a professional email.">
+            <strong>✉ Write something</strong>Draft a professional email or document.
+          </button>
+          <button class="suggestion" data-prompt="Give me ideas for a useful student project.">
+            <strong>✧ Explore ideas</strong>Find ideas for a student project.
+          </button>
+        </div>
+      </div>
+      <div class="messages" id="messages"></div>
+    </section>
+
+    <div class="composer-wrap">
+      <div class="composer">
+        <div class="input-box">
+          <textarea id="userInput" rows="1" placeholder="Message NEXUS AI..."></textarea>
+          <button class="send-btn" id="sendBtn" aria-label="Send message">➤</button>
+        </div>
+        <div class="composer-note">NEXUS AI can make mistakes. Check important information.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal" id="exportModal">
+  <div class="modal-box">
+    <h2 id="modalTitle">Create document</h2>
+    <p id="modalDescription">Choose your document settings.</p>
+
+    <label class="field-label" for="docTitle">Document title</label>
+    <input class="field" id="docTitle" placeholder="Enter a title">
+
+    <label class="field-label" for="docStyle">Design style</label>
+    <select class="field" id="docStyle">
+      <option value="professional">Professional — Purple & Blue</option>
+      <option value="minimal">Minimal — Clean & Simple</option>
+      <option value="academic">Academic — Study Notes</option>
+    </select>
+
+    <div id="pptOptions" style="display:none">
+      <label class="field-label" for="slideCount">Number of slides</label>
+      <select class="field" id="slideCount">
+        <option value="5">5 slides</option>
+        <option value="8" selected>8 slides</option>
+        <option value="10">10 slides</option>
+        <option value="12">12 slides</option>
+      </select>
+    </div>
+
+    <div class="notice" id="exportNotice">
+      The current conversation will be used to create your document.
+    </div>
+
+    <div class="modal-actions">
+      <button class="secondary" id="cancelExport">Cancel</button>
+      <button class="primary" id="createExport">Create</button>
     </div>
   </div>
 </div>
-<div class="app">
-
-<aside class="sidebar" id="sidebar">
-<div class="brand">NEXUS <span>AI</span></div>
-<button class="close-menu" onclick="closeSidebar()">✕ Close Menu</button>
-<button class="newchat" onclick="newChat()">＋ New Chat</button>
-<div class="history">
-<div class="history-title">YOUR CHATS</div>
-<div id="history"></div>
-</div>
-</aside>
-
-<main class="main">
-<header class="topbar">
-<button class="menu" onclick="toggleSidebar()">☰</button>
-<b>NEXUS AI</b>
-
-<button onclick="openPDF()" style="background:#72e5a1;color:#111;border:0;padding:9px 12px;border-radius:8px;font-weight:bold">
-PDF
-</button>
-
-<div class="status">● Online</div>
-</header>
-
-<section class="messages" id="messages">
-<div class="welcome">
-<h1>What can I help with?</h1>
-<p>Ask anything. Learn, create and explore.</p>
-</div>
-</section>
-
-<div class="input-wrap">
-<div class="inputbox">
-<textarea id="prompt" rows="1" placeholder="Message NEXUS AI..."></textarea>
-<button class="send" id="send" onclick="sendMessage()">↑</button>
-</div>
-<div class="note">NEXUS AI can make mistakes. Check important information.</div>
-</div>
-</main>
-</div>
 
 <script>
-const API_URL="https://nexus-ai.pagalkudi14447-6d9.workers.dev";
-const input=document.getElementById("prompt");
-const messages=document.getElementById("messages");
-const historyBox=document.getElementById("history");
-const send=document.getElementById("send");
-const sidebar=document.getElementById("sidebar");
-const overlay=document.getElementById("overlay");
+const API_URL = "https://nexus-ai.pagalkudi14447-6d9.workers.dev";
 
-let chats=[];
-try{chats=JSON.parse(localStorage.getItem("nexus_chats")||"[]");if(!Array.isArray(chats))chats=[];}catch(e){chats=[];}
-let currentId=null;
-function openPDF(){
-document.getElementById("pdfModal").style.display="flex";
+const sidebar = document.getElementById("sidebar");
+const overlay = document.getElementById("overlay");
+const chatArea = document.getElementById("chatArea");
+const messagesEl = document.getElementById("messages");
+const welcome = document.getElementById("welcome");
+const input = document.getElementById("userInput");
+const sendBtn = document.getElementById("sendBtn");
+const historyList = document.getElementById("historyList");
+const exportModal = document.getElementById("exportModal");
+
+let chats = [];
+let currentChatId = null;
+let isLoading = false;
+let exportType = "pdf";
+
+function loadChats(){
+  try {
+    chats = JSON.parse(localStorage.getItem("nexus_chats") || "[]");
+    if(!Array.isArray(chats)) chats = [];
+  } catch {
+    chats = [];
+  }
+  renderHistory();
+  if(chats.length){
+    openChat(chats[0].id);
+  } else {
+    createNewChat();
+  }
 }
 
-function closePDF(){
-document.getElementById("pdfModal").style.display="none";
+function saveChats(){
+  localStorage.setItem("nexus_chats", JSON.stringify(chats));
+  renderHistory();
 }
 
-async function generatePDF(){
-const topic=document.getElementById("pdfTopic").value.trim();
-
-if(!topic){
-alert("PDF ka topic likho");
-return;
+function createNewChat(){
+  const chat = {
+    id: Date.now().toString(),
+    title: "New Chat",
+    messages: []
+  };
+  chats.unshift(chat);
+  currentChatId = chat.id;
+  saveChats();
+  renderMessages();
+  closeSidebar();
+  input.focus();
 }
 
-const btn=document.querySelector(".pdf-generate");
-btn.disabled=true;
-btn.textContent="Creating...";
-
-try{
-const response=await fetch(API_URL,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-message:"Create clear, well-organized educational notes in English on: "+topic+". Use headings, paragraphs and bullet points. Keep it suitable for a PDF document."
-})
-});
-
-const data=await response.json();
-if(!response.ok)throw new Error(data.error||"AI request failed");
-
-const {jsPDF}=window.jspdf;
-const doc=new jsPDF();
-const lines=doc.splitTextToSize(data.reply||"No content generated.",180);
-let y=20;
-
-doc.setFontSize(18);
-doc.text(topic,15,y);
-y+=12;
-doc.setFontSize(11);
-
-lines.forEach(line=>{
-if(y>280){
-doc.addPage();
-y=20;
-}
-doc.text(line,15,y);
-y+=7;
-});
-
-doc.save(topic.replace(/[^a-z0-9]/gi,"_")+".pdf");
-closePDF();
-
-}catch(error){
-alert("PDF Error: "+error.message);
-}
-
-btn.disabled=false;
-btn.textContent="Generate PDF";
-}
-function openPPT(){
-document.getElementById("pptModal").style.display="flex";
-}
-
-function closePPT(){
-document.getElementById("pptModal").style.display="none";
-}
-
-async function generatePPT(){
-const topic=document.getElementById("pptTopic").value.trim();
-
-if(!topic){
-alert("PPT ka topic likho");
-return;
-}
-
-const btn=document.querySelector(".ppt-generate");
-btn.disabled=true;
-btn.textContent="Creating...";
-
-try{
-const response=await fetch(API_URL,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-message:"Create a PowerPoint presentation about "+topic+". Make exactly 7 slides. Use this format strictly: SLIDE 1: Title followed by bullet points on separate lines. Continue up to SLIDE 7. Keep the content educational, clear and concise."
-})
-});
-
-const data=await response.json();
-if(!response.ok)throw new Error(data.error||"AI request failed");
-
-const pptx=new pptxgen();
-pptx.layout="LAYOUT_WIDE";
-pptx.author="NEXUS AI";
-pptx.subject=topic;
-pptx.title=topic;
-pptx.theme={
-headFontFace:"Arial",
-bodyFontFace:"Arial",
-lang:"en-US"
-};
-
-const sections=(data.reply||"").split(/SLIDE\s+\d+\s*:/i).filter(s=>s.trim());
-
-sections.slice(0,7).forEach((section,index)=>{
-const slide=pptx.addSlide();
-const lines=section.trim().split("\n").filter(line=>line.trim());
-const title=lines.shift()||"Slide "+(index+1);
-
-slide.background={color:"17212B"};
-slide.addText(title,{
-x:0.6,y:0.5,w:12,h:0.8,
-fontFace:"Arial",fontSize:26,bold:true,
-color:"72E5A1"
-});
-
-slide.addText(lines.join("\n"),{
-x:0.8,y:1.7,w:11.5,h:5,
-fontFace:"Arial",fontSize:19,
-color:"FFFFFF",
-breakLine:false,
-bullet:{indent:18},
-paraSpaceAfterPt:12,
-valign:"top"
-});
-});
-
-if(sections.length===0){
-throw new Error("AI ne slide format generate nahi kiya. Dobara try karo.");
-}
-
-await pptx.writeFile({
-fileName:topic.replace(/[^a-z0-9]/gi,"_")+".pptx"
-});
-
-closePPT();
-
-}catch(error){
-alert("PPT Error: "+error.message);
-}
-
-btn.disabled=false;
-btn.textContent="Generate PPT";
-}
-function save(){
-localStorage.setItem("nexus_chats",JSON.stringify(chats));
-}
-
-function toggleSidebar(){
-sidebar.classList.toggle("open");
-overlay.classList.toggle("show");
-}
-
-function closeSidebar(){
-sidebar.classList.remove("open");
-overlay.classList.remove("show");
-}
-
-function newChat(){
-currentId=null;
-messages.innerHTML='<div class="welcome"><h1>What can I help with?</h1><p>Ask anything. Learn, create and explore.</p></div>';
-input.value="";
-renderHistory();
-closeSidebar();
-}
-
-function renderHistory(){
-historyBox.innerHTML="";
-chats.slice().reverse().forEach(chat=>{
-const item=document.createElement("div");
-item.className="chat-item"+(chat.id===currentId?" active":"");
-item.textContent=chat.title;
-item.onclick=()=>openChat(chat.id);
-historyBox.appendChild(item);
-});
-}
-
-function addMessage(text,type){
-const div=document.createElement("div");
-div.className="msg "+type;
-div.textContent=text;
-messages.appendChild(div);
-messages.scrollTop=messages.scrollHeight;
-return div;
+function getCurrentChat(){
+  return chats.find(c => c.id === currentChatId);
 }
 
 function openChat(id){
-const chat=chats.find(c=>c.id===id);
-if(!chat)return;
-currentId=id;
-messages.innerHTML="";
-chat.messages.forEach(m=>addMessage(m.text,m.type));
-renderHistory();
-closeSidebar();
+  const chat = chats.find(c => c.id === id);
+  if(!chat) return;
+  currentChatId = id;
+  renderMessages();
+  renderHistory();
+  closeSidebar();
+}
+
+function renderHistory(){
+  historyList.innerHTML = "";
+  chats.forEach(chat => {
+    const item = document.createElement("div");
+    item.className = "history-item" + (chat.id === currentChatId ? " active" : "");
+    item.textContent = chat.title || "New Chat";
+    item.title = chat.title || "New Chat";
+    item.addEventListener("click", () => openChat(chat.id));
+    historyList.appendChild(item);
+  });
+}
+
+function renderMessages(){
+  const chat = getCurrentChat();
+  messagesEl.innerHTML = "";
+  const hasMessages = chat && chat.messages.length > 0;
+  welcome.style.display = hasMessages ? "none" : "block";
+
+  if(!chat) return;
+  chat.messages.forEach((msg, index) => {
+    addMessageToScreen(msg.role, msg.content, index);
+  });
+  scrollToBottom();
+}
+
+function addMessageToScreen(role, content, index){
+  const wrapper = document.createElement("div");
+  wrapper.className = "message " + role;
+
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  avatar.textContent = role === "user" ? "U" : "N";
+
+  const body = document.createElement("div");
+  body.className = "message-body";
+
+  const head = document.createElement("div");
+  head.className = "message-head";
+  head.textContent = role === "user" ? "You" : "NEXUS AI";
+
+  const text = document.createElement("div");
+  text.className = "message-text";
+  renderSafeText(text, content);
+
+  body.append(head, text);
+
+  if(role === "assistant"){
+    const tools = document.createElement("div");
+    tools.className = "message-tools";
+
+    const copy = document.createElement("button");
+    copy.className = "tool-btn";
+    copy.textContent = "Copy response";
+    copy.addEventListener("click", () => copyText(content, copy));
+
+    tools.appendChild(copy);
+    body.appendChild(tools);
+  }
+
+  wrapper.append(avatar, body);
+  messagesEl.appendChild(wrapper);
+}
+
+function renderSafeText(container, content){
+  const parts = String(content || "").split(/```([\s\S]*?)```/g);
+
+  parts.forEach((part, i) => {
+    if(i % 2 === 1){
+      const codeWrap = document.createElement("div");
+      codeWrap.className = "code-wrap";
+
+      const head = document.createElement("div");
+      head.className = "code-head";
+
+      const label = document.createElement("span");
+      label.textContent = "CODE";
+
+      const copy = document.createElement("button");
+      copy.className = "tool-btn";
+      copy.textContent = "Copy code";
+      copy.addEventListener("click", () => copyText(part, copy));
+
+      head.append(label, copy);
+
+      const pre = document.createElement("pre");
+      const code = document.createElement("code");
+      code.textContent = part.replace(/^\w+\n/, "").trim();
+      pre.appendChild(code);
+      codeWrap.append(head, pre);
+      container.appendChild(codeWrap);
+    } else {
+      const cleaned = part
+        .replace(/^#{1,6}\s+/gm, "")
+        .replace(/\*\*(.*?)\*\*/g, "$1")
+        .replace(/__(.*?)__/g, "$1")
+        .replace(/^\s*[-*]\s+/gm, "• ")
+        .replace(/^\s*\d+\.\s+/gm, "• ");
+
+      cleaned.split(/\n{2,}/).forEach(block => {
+        if(!block.trim()) return;
+        const p = document.createElement("p");
+        p.textContent = block.trim();
+        container.appendChild(p);
+      });
+    }
+  });
+}
+
+async function copyText(text, button){
+  try {
+    await navigator.clipboard.writeText(text);
+    const old = button.textContent;
+    button.textContent = "Copied!";
+    setTimeout(() => button.textContent = old, 1300);
+  } catch {
+    const area = document.createElement("textarea");
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand("copy");
+    area.remove();
+    button.textContent = "Copied!";
+    setTimeout(() => button.textContent = "Copy response", 1300);
+  }
+}
+
+function scrollToBottom(){
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function setLoading(value){
+  isLoading = value;
+  sendBtn.disabled = value;
+  sendBtn.textContent = value ? "…" : "➤";
 }
 
 async function sendMessage(){
-const value=input.value.trim();
-if(!value||send.disabled)return;
+  const value = input.value.trim();
+  if(!value || isLoading) return;
 
-if(!currentId){
-currentId=Date.now().toString();
-chats.push({id:currentId,title:value.slice(0,35),messages:[]});
+  let chat = getCurrentChat();
+  if(!chat){
+    createNewChat();
+    chat = getCurrentChat();
+  }
+
+  chat.messages.push({role:"user", content:value});
+  if(chat.messages.length === 1){
+    chat.title = value.length > 32 ? value.slice(0,32) + "…" : value;
+  }
+
+  input.value = "";
+  input.style.height = "auto";
+  saveChats();
+  renderMessages();
+  setLoading(true);
+
+  const loading = document.createElement("div");
+  loading.className = "message assistant";
+  loading.id = "loadingMessage";
+  loading.innerHTML = '<div class="avatar">N</div><div class="message-body"><div class="message-head">NEXUS AI</div><div class="message-text">Thinking...</div></div>';
+  messagesEl.appendChild(loading);
+  scrollToBottom();
+
+  try {
+    const response = await fetch(API_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({message:value})
+    });
+
+    const data = await response.json();
+    if(!response.ok) throw new Error(data.error || "Request failed");
+
+    const reply = data.reply || data.response || "No response generated.";
+    chat.messages.push({role:"assistant", content:reply});
+    saveChats();
+  } catch(error) {
+    chat.messages.push({
+      role:"assistant",
+      content:"Sorry, I couldn't connect to NEXUS AI right now.\n\nError: " + error.message
+    });
+    saveChats();
+  } finally {
+    setLoading(false);
+    renderMessages();
+  }
 }
 
-const chat=chats.find(c=>c.id===currentId);
-chat.messages.push({text:value,type:"user"});
-addMessage(value,"user");
-input.value="";
-send.disabled=true;
+function openSidebar(){
+  sidebar.classList.add("open");
+  overlay.classList.add("show");
+}
+function closeSidebar(){
+  sidebar.classList.remove("open");
+  overlay.classList.remove("show");
+}
 
-const loading=addMessage("NEXUS AI is thinking...","bot");
+document.getElementById("menuBtn").addEventListener("click", openSidebar);
+overlay.addEventListener("click", closeSidebar);
+document.getElementById("newChatBtn").addEventListener("click", createNewChat);
+sendBtn.addEventListener("click", sendMessage);
 
-try{
-const response=await fetch(API_URL,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({message:value})
+input.addEventListener("keydown", e => {
+  if(e.key === "Enter" && !e.shiftKey){
+    e.preventDefault();
+    sendMessage();
+  }
 });
-const data=await response.json();
-if(!response.ok)throw new Error(data.error||"Request failed");
-
-const answer=data.reply||"No response generated.";
-loading.textContent=answer;
-chat.messages.push({text:answer,type:"bot"});
-}catch(error){
-loading.textContent="Error: "+error.message;
-}
-save();
-renderHistory();
-send.disabled=false;
-input.focus();
-}
-
-input.addEventListener("keydown",e=>{
-if(e.key==="Enter"&&!e.shiftKey){
-e.preventDefault();
-sendMessage();
-}
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 150) + "px";
 });
 
-document.addEventListener("keydown",e=>{
-if(e.key==="Escape")closeSidebar();
+document.querySelectorAll(".suggestion").forEach(btn => {
+  btn.addEventListener("click", () => {
+    input.value = btn.dataset.prompt;
+    sendMessage();
+  });
 });
 
-renderHistory();
+/* PDF AND POWERPOINT EXPORT */
+
+function openExport(type){
+  const chat = getCurrentChat();
+  if(!chat || !chat.messages.length){
+    alert("Pehle chat mein kuch content likho.");
+    return;
+  }
+
+  exportType = type;
+  document.getElementById("modalTitle").textContent =
+    type === "pdf" ? "Create PDF" : "Create PowerPoint";
+
+  document.getElementById("modalDescription").textContent =
+    type === "pdf"
+      ? "Create a formatted PDF from this conversation."
+      : "Create a PowerPoint presentation from this conversation.";
+
+  document.getElementById("docTitle").value =
+    chat.title === "New Chat" ? "NEXUS AI Document" : chat.title;
+
+  document.getElementById("pptOptions").style.display =
+    type === "ppt" ? "block" : "none";
+
+  document.getElementById("exportNotice").textContent =
+    type === "pdf"
+      ? "PDF will be generated in your browser using the conversation text."
+      : "Slides will be generated from the conversation text. Review them before presenting.";
+
+  document.getElementById("createExport").textContent =
+    type === "pdf" ? "Create PDF" : "Create PPT";
+
+  exportModal.style.display = "flex";
+}
+
+function closeExport(){
+  exportModal.style.display = "none";
+}
+
+document.getElementById("pdfBtn").addEventListener("click", () => openExport("pdf"));
+document.getElementById("pptBtn").addEventListener("click", () => openExport("ppt"));
+document.getElementById("cancelExport").addEventListener("click", closeExport);
+exportModal.addEventListener("click", e => {
+  if(e.target === exportModal) closeExport();
+});
+
+function getConversationText(){
+  const chat = getCurrentChat();
+  return chat.messages.map(m =>
+    (m.role === "user" ? "You: " : "NEXUS AI: ") + m.content
+  ).join("\n\n");
+}
+
+async function createPDF(){
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert("PDF library load nahi hui. Internet connection check karo.");
+    return;
+  }
+
+  const chat = getCurrentChat();
+  const title = document.getElementById("docTitle").value.trim() || "NEXUS AI Document";
+  const style = document.getElementById("docStyle").value;
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({unit:"mm",format:"a4"});
+
+  const themes = {
+    professional:{r:42,g:45,b:110},
+    minimal:{r:45,g:55,b:75},
+    academic:{r:30,g:75,b:90}
+  };
+  const color = themes[style];
+
+  doc.setFillColor(color.r,color.g,color.b);
+  doc.rect(0,0,210,48,"F");
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(23);
+  doc.text(title,16,23,{maxWidth:178});
+  doc.setFontSize(10);
+  doc.text("Created with NEXUS AI",16,37);
+
+  let y = 62;
+  const margin = 16;
+  const maxWidth = 178;
+
+  chat.messages.forEach(message => {
+    const heading = message.role === "user" ? "YOU" : "NEXUS AI";
+    const lines = doc.splitTextToSize(message.content, maxWidth);
+
+    if(y > 265){
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setTextColor(color.r,color.g,color.b);
+    doc.setFontSize(10);
+    doc.setFont("helvetica","bold");
+    doc.text(heading,margin,y);
+    y += 7;
+
+    doc.setTextColor(35,40,55);
+    doc.setFontSize(10);
+    doc.setFont("helvetica","normal");
+
+    lines.forEach(line => {
+      if(y > 280){
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(line,margin,y);
+      y += 5;
+    });
+    y += 7;
+  });
+
+  doc.save(title.replace(/[^\w-]+/g,"_") + ".pdf");
+}
+
+function createPPT(){
+  if(typeof pptxgen === "undefined"){
+    alert("PowerPoint library load nahi hui. Internet connection check karo.");
+    return;
+  }
+
+  const chat = getCurrentChat();
+  const title = document.getElementById("docTitle").value.trim() || "NEXUS AI Presentation";
+  const style = document.getElementById("docStyle").value;
+  const count = Number(document.getElementById("slideCount").value);
+
+  const pptx = new pptxgen();
+  pptx.layout = "LAYOUT_WIDE";
+  pptx.author = "NEXUS AI";
+  pptx.subject = title;
+  pptx.title = title;
+
+  const themes = {
+    professional:{bg:"101735",accent:"8055E8"},
+    minimal:{bg:"F2F4FA",accent:"3155D9"},
+    academic:{bg:"102A3A",accent:"2196A6"}
+  };
+  const theme = themes[style];
+  const textColor = style === "minimal" ? "20243A" : "FFFFFF";
+
+  const allText = chat.messages
+    .map(m => (m.role === "user" ? "Question: " : "") + m.content)
+    .join("\n\n");
+
+  const chunks = splitIntoChunks(allText, count - 1);
+
+  let slide = pptx.addSlide();
+  slide.background = {color:theme.bg};
+  slide.addShape(pptx.ShapeType.rect,{
+    x:0,y:0,w:0.18,h:7.5,fill:{color:theme.accent},line:{color:theme.accent}
+  });
+  slide.addText(title,{
+    x:0.8,y:2.3,w:11.5,h:1.2,fontSize:30,bold:true,
+    color:textColor,breakLine:false,fit:"shrink"
+  });
+  slide.addText("Created with NEXUS AI",{
+    x:0.85,y:3.65,w:8,h:0.4,fontSize:14,color:"B9C4E8"
+  });
+
+  chunks.forEach((chunk,i) => {
+    slide = pptx.addSlide();
+    slide.background = {color:theme.bg};
+    slide.addShape(pptx.ShapeType.rect,{
+      x:0,y:0,w:13.33,h:0.16,
+      fill:{color:theme.accent},line:{color:theme.accent}
+    });
+    slide.addText("KEY POINTS",{
+      x:0.65,y:0.45,w:11.8,h:0.35,
+      fontSize:11,bold:true,color:theme.accent
+    });
+    slide.addText(chunk,{
+      x:0.7,y:1.05,w:11.8,h:5.7,
+      fontSize:19,color:textColor,breakLine:false,
+      valign:"top",fit:"shrink",margin:0.12,
+      bullet:{indent:18}
+    });
+    slide.addText(String(i+2),{
+      x:12.2,y:7.05,w:0.5,h:0.2,
+      fontSize:9,color:"AAB3D0",align:"right"
+    });
+  });
+
+  pptx.writeFile({fileName:title.replace(/[^\w-]+/g,"_") + ".pptx"});
+}
+
+function splitIntoChunks(text, number){
+  const words = text.split(/\s+/).filter(Boolean);
+  const total = Math.max(1,number);
+  const size = Math.ceil(words.length / total);
+  const chunks = [];
+  for(let i=0;i<words.length;i+=size){
+    chunks.push(words.slice(i,i+size).join(" "));
+  }
+  return chunks.length ? chunks.slice(0,total) : ["No content available."];
+}
+
+document.getElementById("createExport").addEventListener("click", async () => {
+  const button = document.getElementById("createExport");
+  button.disabled = true;
+  try {
+    if(exportType === "pdf") await createPDF();
+    else await createPPT();
+    closeExport();
+  } catch(error) {
+    alert("File create nahi hui: " + error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+loadChats();
 </script>
 </body>
 </html>
-
