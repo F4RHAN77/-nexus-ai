@@ -376,19 +376,28 @@ function renderHistory(){
   });
 }
 
+
 function renderMessages(){
   const chat = getCurrentChat();
   messagesEl.innerHTML = "";
-  const hasMessages = chat && chat.messages.length > 0;
-  welcome.style.display = hasMessages ? "none" : "block";
 
-  if(!chat) return;
-  chat.messages.forEach((msg, index) => {
+  if(!chat){
+    welcome.style.display = "block";
+    return;
+  }
+
+  const visibleMessages = (Array.isArray(chat.messages) ? chat.messages : [])
+    .filter(msg => String(msg.content || "").trim().length > 0);
+
+  welcome.style.display = visibleMessages.length ? "none" : "block";
+
+  visibleMessages.forEach((msg, index) => {
     addMessageToScreen(msg.role, msg.content, index);
   });
+
   scrollToBottom();
 }
-
+  
 function addMessageToScreen(role, content, index){
   const wrapper = document.createElement("div");
   wrapper.className = "message " + role;
