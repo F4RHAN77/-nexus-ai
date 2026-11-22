@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NEXUS AI</title>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
 
@@ -101,11 +102,36 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 .code-head{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#151d32;color:#8f9cbd;font-size:10px;border-bottom:1px solid #303958}
 .copy-code{background:#27314c;color:#dfe6ff;border:1px solid #465276;border-radius:6px;padding:4px 8px;font-size:10px}
 
+
+.auth-screen{position:fixed;inset:0;z-index:100;background:radial-gradient(ellipse at 50% 0%,#292052 0%,#080a12 58%);display:grid;place-items:center;padding:20px}
+.auth-card{width:min(100%,420px);padding:28px;border:1px solid rgba(164,180,255,.2);border-radius:22px;background:#111629;box-shadow:0 24px 80px #0009}
+.auth-card h1{margin:0 0 8px;font-size:25px}.auth-card p{color:#929bb7;font-size:13px;line-height:1.6}
+.auth-card label{display:block;color:#cbd2eb;font-size:12px;margin:15px 0 7px}
+.auth-card input{width:100%;padding:13px;border-radius:10px;border:1px solid #303958;background:#090e1b;color:white;outline:none}
+.auth-actions{display:flex;gap:9px;margin-top:18px}.auth-actions button,.auth-logout{border:1px solid #554a91;border-radius:10px;padding:11px 14px;color:white;background:linear-gradient(110deg,#7138d8,#3155d9);font-weight:700}
+.auth-actions .alt{background:#252d4d;border-color:#394565}.auth-error{color:#ff9b9b!important;min-height:18px}.auth-logout{font-size:11px;padding:8px 10px}
+
 </style>
 </head>
 
 <body>
-<div class="app">
+<div class="auth-screen" id="authScreen">
+  <form class="auth-card" id="authForm">
+    <div class="logo" style="margin-bottom:18px">N</div>
+    <h1>Welcome to NEXUS AI</h1>
+    <p id="authSubtitle">Sign in with your verified email to continue.</p>
+    <label for="authEmail">Email address</label>
+    <input id="authEmail" type="email" autocomplete="email" required placeholder="you@example.com">
+    <label for="authPassword">Password</label>
+    <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters">
+    <div class="auth-actions">
+      <button type="submit" id="authSubmit">Sign in</button>
+      <button type="button" class="alt" id="authToggle">Create account</button>
+    </div>
+    <p id="authError" class="auth-error" role="status"></p>
+  </form>
+</div>
+<div class="app" id="nexusApp" style="visibility:hidden">
 
   <aside class="sidebar" id="sidebar">
     <div class="brand">
@@ -143,6 +169,7 @@ button,input,textarea{font:inherit}button{cursor:pointer}
       <div class="top-actions">
         <button class="small-btn" onclick="exportPDF()">PDF</button>
         <button class="small-btn" onclick="exportPPT()">PPT</button>
+        <button class="auth-logout" id="logoutBtn">Log out</button>
       </div>
     </header>
 
@@ -163,6 +190,51 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 </div>
 
 <script>
+
+const SUPABASE_URL = "https://hrtbmmahyxrwppynbrvr.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_v3hYBvWWXkmBltBt_JcWlg_Yjn61UY8";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+let authMode = "login";
+const authForm = document.getElementById("authForm");
+const authError = document.getElementById("authError");
+document.getElementById("authToggle").addEventListener("click",()=>{
+  authMode = authMode === "login" ? "signup" : "login";
+  document.getElementById("authSubmit").textContent = authMode === "login" ? "Sign in" : "Create account";
+  document.getElementById("authToggle").textContent = authMode === "login" ? "Create account" : "Back to sign in";
+  document.getElementById("authSubtitle").textContent = authMode === "login" ? "Sign in with your verified email to continue." : "Create an account. Verify your email before signing in.";
+  document.getElementById("authPassword").autocomplete = authMode === "login" ? "current-password" : "new-password";
+  authError.textContent = "";
+});
+authForm.addEventListener("submit",async e=>{
+  e.preventDefault(); authError.textContent="";
+  const email=document.getElementById("authEmail").value.trim();
+  const password=document.getElementById("authPassword").value;
+  const button=document.getElementById("authSubmit"); button.disabled=true;
+  try {
+    if(authMode==="signup"){
+      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin}});
+      if(error) throw error;
+      authError.style.color="#48e0b0";
+      authError.textContent=data.session ? "Account created. You can continue." : "Verification email sent. Confirm your email, then sign in.";
+    } else {
+      const {error}=await supabaseClient.auth.signInWithPassword({email,password});
+      if(error) throw error;
+    }
+  } catch(err){authError.style.color="#ff9b9b";authError.textContent=err.message||"Authentication failed.";}
+  finally{button.disabled=false;}
+});
+document.getElementById("logoutBtn").addEventListener("click",async()=>{
+  await supabaseClient.auth.signOut();
+});
+async function applyAuthSession(session){
+  const signedIn=!!session?.user;
+  document.getElementById("authScreen").style.display=signedIn?"none":"grid";
+  document.getElementById("nexusApp").style.visibility=signedIn?"visible":"hidden";
+  if(signedIn && !window.nexusChatsLoaded){window.nexusChatsLoaded=true;loadChats();}
+}
+supabaseClient.auth.onAuthStateChange((_event,session)=>applyAuthSession(session));
+supabaseClient.auth.getSession().then(({data})=>applyAuthSession(data.session));
+
 const API_URL = "https://nexus-ai.pagalkudi14447-6d9.workers.dev"; // Cloudflare Worker endpoint
 
 const messagesEl = document.getElementById("messages");
@@ -763,7 +835,6 @@ async function exportPPT() {
   await pptx.writeFile({fileName:"NEXUS-AI-Presentation.pptx"});
 }
 
-loadChats();
 </script>
 </body>
 </html>
