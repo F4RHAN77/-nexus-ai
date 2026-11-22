@@ -298,27 +298,55 @@ function escapeHTML(value) {
 }
 
 function renderMarkdown(value) {
-  const source = String(value || "");
-  const blocks = [];
-  let safe = escapeHTML(source).replace(/`{3}([\w-]*)\n([\s\S]*?)`{3}/g, (_,lang,code) => {
-    const key = "%%CODE" + blocks.length + "%%";
-    blocks.push('<pre class="code-block"><div class="code-head">' +
-      escapeHTML(lang || "code") + '<button class="copy-code" type="button" data-code="' +
-      encodeURIComponent(code) + '">Copy code</button></div><code>' + code + '</code></pre>');
-    return key;
+  const escape = value => String(value).replace(/[&<>"']/g, ch => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  })[ch]);
+  const codeBlocks = [];
+  let source = String(value || "").replace(/\x60{3}([\w-]*)\n([\s\S]*?)\x60{3}/g, (_,lang,code) => {
+    const token = "NEXUSCODE" + codeBlocks.length + "TOKEN";
+    codeBlocks.push('<pre class="code-block"><div class="code-head"><span>' +
+      escape(lang || "CODE") + '</span><button class="copy-code" type="button" data-code="' +
+      encodeURIComponent(code) + '">Copy code</button></div><code>' + escape(code) + '</code></pre>');
+    return "\n" + token + "\n";
   });
-  safe = safe.replace(/^### (.+)$/gm,"<h3>$1</h3>")
-    .replace(/^## (.+)$/gm,"<h2>$1</h2>")
-    .replace(/^# (.+)$/gm,"<h1>$1</h1>")
-    .replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>')
-    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g,"<em>$1</em>")
-    .replace(/`([^`]+)`/g,'<code class="inline-code">$1</code>')
-    .replace(/^[-*] (.+)$/gm,"<li>$1</li>")
-    .replace(/(?:<li>.*<\/li>\n?)+/g, match => "<ul>" + match + "</ul>")
-    .replace(/\n/g,"<br>");
-  safe = safe.replace(/%%CODE(\d+)%%/g,(_,i)=>blocks[Number(i)] || "");
-  return safe;
+  const inline = text => escape(text)
+    .replace(/\x60([^\x60]+)\x60/g, '<code class="inline-code">$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>')
+    .replace(/~~(.+?)~~/g, '<del>$1</del>');
+  const out = [];
+  let listType = null;
+  const closeList = () => {
+    if (listType) { out.push(listType === "ol" ? "</ol>" : "</ul>"); listType = null; }
+  };
+  for (const rawLine of source.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) { closeList(); continue; }
+    const codeMatch = line.match(/^NEXUSCODE(\d+)TOKEN$/);
+    if (codeMatch) { closeList(); out.push(codeBlocks[Number(codeMatch[1])] || ""); continue; }
+    if (/^([-*_])\1\1+$/.test(line)) { closeList(); out.push('<hr class="markdown-divider">'); continue; }
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      closeList();
+      const level = heading[1].length;
+      out.push("<h" + level + ">" + inline(heading[2]) + "</h" + level + ">");
+      continue;
+    }
+    const quote = line.match(/^>\s?(.+)$/);
+    if (quote) { closeList(); out.push("<blockquote>" + inline(quote[1]) + "</blockquote>"); continue; }
+    const ordered = line.match(/^\d+[.)]\s+(.+)$/), unordered = line.match(/^[-*+]\s+(.+)$/);
+    if (ordered || unordered) {
+      const wanted = ordered ? "ol" : "ul";
+      if (listType !== wanted) { closeList(); listType = wanted; out.push("<" + wanted + ">"); }
+      out.push("<li>" + inline((ordered || unordered)[1]) + "</li>");
+      continue;
+    }
+    closeList();
+    out.push("<p>" + inline(line) + "</p>");
+  }
+  closeList();
+  return out.join("").replace(/NEXUSCODE(\d+)TOKEN/g, (_,i) => codeBlocks[Number(i)] || "");
 }
 
 function renderMessages() {
