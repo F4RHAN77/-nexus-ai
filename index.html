@@ -300,7 +300,7 @@ function escapeHTML(value) {
 function renderMarkdown(value) {
   const source = String(value || "");
   const blocks = [];
-  let safe = escapeHTML(source).replace(/`{3}([\\w-]*)\\n([\\s\\S]*?)`{3}/g, (_,lang,code) => {
+  let safe = escapeHTML(source).replace(/`{3}([\w-]*)\n([\s\S]*?)`{3}/g, (_,lang,code) => {
     const key = "%%CODE" + blocks.length + "%%";
     blocks.push('<pre class="code-block"><div class="code-head">' +
       escapeHTML(lang || "code") + '<button class="copy-code" type="button" data-code="' +
@@ -311,13 +311,13 @@ function renderMarkdown(value) {
     .replace(/^## (.+)$/gm,"<h2>$1</h2>")
     .replace(/^# (.+)$/gm,"<h1>$1</h1>")
     .replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>')
-    .replace(/\\*\\*(.+?)\\*\\*/g,"<strong>$1</strong>")
-    .replace(/\\*(.+?)\\*/g,"<em>$1</em>")
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g,"<em>$1</em>")
     .replace(/`([^`]+)`/g,'<code class="inline-code">$1</code>')
     .replace(/^[-*] (.+)$/gm,"<li>$1</li>")
-    .replace(/(?:<li>.*<\\/li>\\n?)+/g, match => "<ul>" + match + "</ul>")
-    .replace(/\\n/g,"<br>");
-  safe = safe.replace(/%%CODE(\\d+)%%/g,(_,i)=>blocks[Number(i)] || "");
+    .replace(/(?:<li>.*<\/li>\n?)+/g, match => "<ul>" + match + "</ul>")
+    .replace(/\n/g,"<br>");
+  safe = safe.replace(/%%CODE(\d+)%%/g,(_,i)=>blocks[Number(i)] || "");
   return safe;
 }
 
