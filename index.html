@@ -129,13 +129,22 @@ button,input,textarea{font:inherit}button{cursor:pointer}
     <label for="authPassword">Password</label>
     <div class="password-wrap">
       <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters">
-      <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password" aria-pressed="false">Show</button>
+      <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password" aria-pressed="false">👁 Show</button>
     </div>
     <div class="auth-actions">
       <button type="submit" id="authSubmit">Sign in</button>
       <button type="button" class="alt" id="authToggle">Create account</button>
     </div>
     <p id="authError" class="auth-error" role="status"></p>
+    <section id="otpPanel" style="display:none;margin-top:16px">
+      <label for="authOtp">Email verification code</label>
+      <input id="authOtp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Enter the code from your email">
+      <div class="auth-actions">
+        <button type="button" id="verifyOtpBtn">Verify code</button>
+        <button type="button" class="alt" id="resendOtpBtn">Resend code</button>
+      </div>
+      <p style="font-size:12px;color:#929bb7">Enter the verification code sent to your email address.</p>
+    </section>
   </form>
 </div>
 <div class="app" id="nexusApp" style="visibility:hidden">
@@ -209,16 +218,19 @@ const passwordToggle = document.getElementById("passwordToggle");
 passwordToggle.addEventListener("click",()=>{
   const show = passwordInput.type === "password";
   passwordInput.type = show ? "text" : "password";
-  passwordToggle.textContent = show ? "Hide" : "Show";
+  passwordToggle.textContent = show ? "Hide" : "👁 Show";
   passwordToggle.setAttribute("aria-label",show ? "Hide password" : "Show password");
   passwordToggle.setAttribute("aria-pressed",String(show));
 });
+let pendingVerificationEmail = "";
 document.getElementById("authToggle").addEventListener("click",()=>{
   authMode = authMode === "login" ? "signup" : "login";
   document.getElementById("authSubmit").textContent = authMode === "login" ? "Sign in" : "Create account";
   document.getElementById("authToggle").textContent = authMode === "login" ? "Create account" : "Back to sign in";
-  document.getElementById("authSubtitle").textContent = authMode === "login" ? "Sign in with your verified email to continue." : "Create an account. Verify your email before signing in.";
+  document.getElementById("authSubtitle").textContent = authMode === "login" ? "Sign in with your email and password." : "Create your NEXUS AI account. We will email you a verification code.";
   document.getElementById("authPassword").autocomplete = authMode === "login" ? "current-password" : "new-password";
+  document.getElementById("otpPanel").style.display="none";
+  document.getElementById("authSubmit").style.display="";
   authError.textContent = "";
 });
 authForm.addEventListener("submit",async e=>{
@@ -228,16 +240,56 @@ authForm.addEventListener("submit",async e=>{
   const button=document.getElementById("authSubmit"); button.disabled=true;
   try {
     if(authMode==="signup"){
-      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin}});
+      const {data,error}=await supabaseClient.auth.signUp({email,password});
       if(error) throw error;
-      authError.style.color="#48e0b0";
-      authError.textContent=data.session ? "Account created. You can continue." : "Verification email sent. Confirm your email, then sign in.";
+      if(data.session){
+        authError.style.color="#48e0b0";
+        authError.textContent="Account created successfully.";
+      } else {
+        pendingVerificationEmail=email;
+        document.getElementById("otpPanel").style.display="block";
+        document.getElementById("authSubmit").style.display="none";
+        authError.style.color="#48e0b0";
+        authError.textContent="Verification code sent. Check your inbox and enter the code below.";
+      }
     } else {
       const {error}=await supabaseClient.auth.signInWithPassword({email,password});
       if(error) throw error;
     }
   } catch(err){authError.style.color="#ff9b9b";authError.textContent=err.message||"Authentication failed.";}
   finally{button.disabled=false;}
+});
+document.getElementById("verifyOtpBtn").addEventListener("click",async()=>{
+  const token=document.getElementById("authOtp").value.trim();
+  const verify=document.getElementById("verifyOtpBtn");
+  authError.textContent="";
+  if(!pendingVerificationEmail || !token){authError.style.color="#ff9b9b";authError.textContent="Enter the verification code first.";return;}
+  verify.disabled=true;
+  try{
+    const {error}=await supabaseClient.auth.verifyOtp({email:pendingVerificationEmail,token,type:"signup"});
+    if(error) throw error;
+    authError.style.color="#48e0b0";
+    authError.textContent="Email verified! Your account is ready. Sign in with your password.";
+    document.getElementById("otpPanel").style.display="none";
+    document.getElementById("authSubmit").style.display="";
+    authMode="login";
+    document.getElementById("authSubmit").textContent="Sign in";
+    document.getElementById("authToggle").textContent="Create account";
+    document.getElementById("authSubtitle").textContent="Your email is verified. Sign in to continue.";
+    pendingVerificationEmail="";
+  }catch(err){authError.style.color="#ff9b9b";authError.textContent=err.message||"Code verification failed.";}
+  finally{verify.disabled=false;}
+});
+document.getElementById("resendOtpBtn").addEventListener("click",async()=>{
+  const resend=document.getElementById("resendOtpBtn");
+  resend.disabled=true;
+  try{
+    const {error}=await supabaseClient.auth.resend({type:"signup",email:pendingVerificationEmail});
+    if(error) throw error;
+    authError.style.color="#48e0b0";
+    authError.textContent="A new verification code has been sent.";
+  }catch(err){authError.style.color="#ff9b9b";authError.textContent=err.message||"Could not resend code.";}
+  finally{resend.disabled=false;}
 });
 document.getElementById("logoutBtn").addEventListener("click",async()=>{
   await supabaseClient.auth.signOut();
