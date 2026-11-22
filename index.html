@@ -90,6 +90,17 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 }
 @media(max-width:370px){.topbar{padding:0 8px}.top-actions{gap:4px}.small-btn{padding:6px 8px}.welcome h1{font-size:26px}}
 
+
+.message-text h1,.message-text h2,.message-text h3{color:#f3f4ff;line-height:1.35;margin:17px 0 8px}
+.message-text h1{font-size:21px}.message-text h2{font-size:18px}.message-text h3{font-size:15px}
+.message-text ul{padding-left:22px;margin:8px 0}.message-text li{margin:5px 0}
+.message-text blockquote{border-left:3px solid #8875f4;padding:5px 12px;margin:10px 0;color:#abb6d2;background:#ffffff08}
+.inline-code{background:#252b43;color:#c6b6ff;padding:2px 5px;border-radius:5px;font-size:.9em}
+.code-block{background:#080c17;border:1px solid #303958;border-radius:12px;margin:12px 0;overflow:hidden;white-space:pre-wrap}
+.code-block code{display:block;padding:14px;color:#c9d6ff;font:12px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+.code-head{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#151d32;color:#8f9cbd;font-size:10px;border-bottom:1px solid #303958}
+.copy-code{background:#27314c;color:#dfe6ff;border:1px solid #465276;border-radius:6px;padding:4px 8px;font-size:10px}
+
 </style>
 </head>
 
@@ -152,7 +163,7 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 </div>
 
 <script>
-const API_URL = "https://nexus-ai.pagalkudi14447-6d9.workers.dev";
+const API_URL = "https://nexus-ai.pagalkudi14447-6d9.workers.dev"; // Cloudflare Worker endpoint
 
 const messagesEl = document.getElementById("messages");
 const input = document.getElementById("messageInput");
@@ -247,9 +258,9 @@ function renderChatList() {
   const query = (document.getElementById("chatSearch")?.value || "").trim().toLowerCase();
   list.innerHTML = "";
 
-  const filtered = chats.filter(chat =>
-    (chat.title || "New Chat").toLowerCase().includes(query)
-  );
+  const filtered = [...chats]
+    .sort((a,b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+    .filter(chat => (chat.title || "New Chat").toLowerCase().includes(query));
 
   if (!filtered.length) {
     const empty = document.createElement("div");
@@ -278,6 +289,36 @@ function renderChatList() {
     item.onclick = () => openChat(chat.id);
     list.appendChild(item);
   });
+}
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  })[ch]);
+}
+
+function renderMarkdown(value) {
+  const source = String(value || "");
+  const blocks = [];
+  let safe = escapeHTML(source).replace(/`{3}([\\w-]*)\\n([\\s\\S]*?)`{3}/g, (_,lang,code) => {
+    const key = "%%CODE" + blocks.length + "%%";
+    blocks.push('<pre class="code-block"><div class="code-head">' +
+      escapeHTML(lang || "code") + '<button class="copy-code" type="button" data-code="' +
+      encodeURIComponent(code) + '">Copy code</button></div><code>' + code + '</code></pre>');
+    return key;
+  });
+  safe = safe.replace(/^### (.+)$/gm,"<h3>$1</h3>")
+    .replace(/^## (.+)$/gm,"<h2>$1</h2>")
+    .replace(/^# (.+)$/gm,"<h1>$1</h1>")
+    .replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>')
+    .replace(/\\*\\*(.+?)\\*\\*/g,"<strong>$1</strong>")
+    .replace(/\\*(.+?)\\*/g,"<em>$1</em>")
+    .replace(/`([^`]+)`/g,'<code class="inline-code">$1</code>')
+    .replace(/^[-*] (.+)$/gm,"<li>$1</li>")
+    .replace(/(?:<li>.*<\\/li>\\n?)+/g, match => "<ul>" + match + "</ul>")
+    .replace(/\\n/g,"<br>");
+  safe = safe.replace(/%%CODE(\\d+)%%/g,(_,i)=>blocks[Number(i)] || "");
+  return safe;
 }
 
 function renderMessages() {
@@ -358,11 +399,20 @@ function addMessageToDOM(msg) {
 
   const text = document.createElement("div");
   text.className = "message-text";
-  text.textContent = msg.content || "";
+  text.innerHTML = msg.role === "assistant"
+    ? renderMarkdown(msg.content || "")
+    : escapeHTML(msg.content || "").replace(/\\n/g,"<br>");
 
   content.append(name,text);
 
   if (msg.role === "assistant") {
+    text.querySelectorAll(".copy-code").forEach(button => {
+      button.addEventListener("click", () => {
+        const code = decodeURIComponent(button.dataset.code || "");
+        copyText(code);
+        button.textContent = "Copied";
+      });
+    });
     const tools = document.createElement("div");
     tools.className = "message-tools";
 
@@ -535,6 +585,13 @@ function toggleSidebar() {
   document.getElementById("overlay").classList.toggle("show");
 }
 
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("show");
+  }
+});
+
 function closeSidebarOnMobile() {
   if (window.innerWidth <= 700) {
     document.getElementById("sidebar").classList.remove("open");
@@ -625,12 +682,12 @@ async function exportPPT() {
   const chat = getConversationText();
   if (!chat) return;
 
-  if (!window.PptxGenJS) {
-    alert("PPT library load nahi hui. Internet check karo.");
+  const PptxGenJS = window.pptxgen || window.PptxGenJS || window.pptxgenjs;
+  if (!PptxGenJS) {
+    alert("PPT library load nahi hui. Page refresh karke try karo.");
     return;
   }
-
-  const pptx = new pptxgen();
+  const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_WIDE";
   pptx.author = "NEXUS AI";
   pptx.subject = "NEXUS AI Conversation";
