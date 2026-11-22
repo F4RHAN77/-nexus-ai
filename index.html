@@ -108,6 +108,10 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 .auth-card h1{margin:0 0 8px;font-size:25px}.auth-card p{color:#929bb7;font-size:13px;line-height:1.6}
 .auth-card label{display:block;color:#cbd2eb;font-size:12px;margin:15px 0 7px}
 .auth-card input{width:100%;padding:13px;border-radius:10px;border:1px solid #303958;background:#090e1b;color:white;outline:none}
+.password-wrap{position:relative;display:flex;align-items:center;margin-bottom:14px}
+.password-wrap input{width:100%;padding-right:70px}
+.password-toggle{position:absolute;right:9px;top:50%;transform:translateY(-50%);border:1px solid #394463;background:#202943;color:#d9ddf4;border-radius:8px;padding:6px 9px;font-size:11px;cursor:pointer}
+.password-toggle:hover{background:#303c60;color:#fff}
 .auth-actions{display:flex;gap:9px;margin-top:18px}.auth-actions button,.auth-logout{border:1px solid #554a91;border-radius:10px;padding:11px 14px;color:white;background:linear-gradient(110deg,#7138d8,#3155d9);font-weight:700}
 .auth-actions .alt{background:#252d4d;border-color:#394565}.auth-error{color:#ff9b9b!important;min-height:18px}.auth-logout{font-size:11px;padding:8px 10px}
 
@@ -123,7 +127,10 @@ button,input,textarea{font:inherit}button{cursor:pointer}
     <label for="authEmail">Email address</label>
     <input id="authEmail" type="email" autocomplete="email" required placeholder="you@example.com">
     <label for="authPassword">Password</label>
-    <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters">
+    <div class="password-wrap">
+      <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters">
+      <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password" aria-pressed="false">Show</button>
+    </div>
     <div class="auth-actions">
       <button type="submit" id="authSubmit">Sign in</button>
       <button type="button" class="alt" id="authToggle">Create account</button>
@@ -197,6 +204,15 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLIS
 let authMode = "login";
 const authForm = document.getElementById("authForm");
 const authError = document.getElementById("authError");
+const passwordInput = document.getElementById("authPassword");
+const passwordToggle = document.getElementById("passwordToggle");
+passwordToggle.addEventListener("click",()=>{
+  const show = passwordInput.type === "password";
+  passwordInput.type = show ? "text" : "password";
+  passwordToggle.textContent = show ? "Hide" : "Show";
+  passwordToggle.setAttribute("aria-label",show ? "Hide password" : "Show password");
+  passwordToggle.setAttribute("aria-pressed",String(show));
+});
 document.getElementById("authToggle").addEventListener("click",()=>{
   authMode = authMode === "login" ? "signup" : "login";
   document.getElementById("authSubmit").textContent = authMode === "login" ? "Sign in" : "Create account";
