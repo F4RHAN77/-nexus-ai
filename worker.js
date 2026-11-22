@@ -63,9 +63,11 @@ export default {
       }
 
       // Conversation history support
-      const history = Array.isArray(body.history)
-        ? body.history
-        : [];
+      const history = Array.isArray(body.messages)
+  ? body.messages
+  : Array.isArray(body.history)
+    ? body.history
+    : [];
 
       const validHistory = history
         .filter(item =>
