@@ -78,6 +78,12 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 #messageInput::placeholder{color:#818ba8}
 .send-btn{border:0;border-radius:13px;width:39px;height:39px;background:linear-gradient(135deg,#9b6bff,#537dff 58%,#25c7d4);color:#fff;font-size:18px;flex-shrink:0;display:grid;place-items:center;box-shadow:0 5px 18px rgba(94,103,244,.28);transition:.2s}
 .send-btn:hover{filter:brightness(1.13);transform:translateY(-2px)}.send-btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.voice-btn{width:39px;height:39px;flex-shrink:0;border:1px solid rgba(153,164,255,.2);border-radius:13px;background:#202943;color:#dce2ff;display:grid;place-items:center;font-size:16px;transition:.2s}
+.voice-btn:hover{background:#303c60;border-color:#7e75e8;transform:translateY(-1px)}
+.voice-btn.listening{background:linear-gradient(135deg,#8b5cf6,#3155d9);box-shadow:0 0 0 4px #8b5cf626;animation:voicePulse 1.3s infinite}
+@keyframes voicePulse{50%{box-shadow:0 0 0 8px #8b5cf610}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
 .disclaimer{text-align:center;color:#687493;font-size:10px;margin-top:11px;letter-spacing:.15px}
 .overlay{display:none;position:fixed;inset:0;background:#02040bbd;backdrop-filter:blur(3px);z-index:9}.overlay.show{display:block}
 @media(min-width:1100px){.messages{padding-top:38px}.welcome{margin-top:9vh}.composer-area{padding-bottom:22px}}
@@ -207,6 +213,7 @@ button,input,textarea{font:inherit}button{cursor:pointer}
         <textarea id="messageInput"
           placeholder="Message NEXUS AI..."
           rows="1"></textarea>
+        <button class="voice-btn" id="voiceBtn" type="button" title="Voice input" aria-label="Start voice input" onclick="toggleVoiceInput()">🎙</button>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
       </div>
       <div class="disclaimer">
@@ -603,9 +610,11 @@ function renderMessages() {
 
     [
       ["✦","Introduce yourself","Meet your AI assistant"],
-      ["⌘","Explain computer networking","Learn a complex topic simply"],
-      ["⌁","Help me learn programming","Build skills step by step"],
-      ["✎","Write a professional email","Create polished writing"]
+      ["📚","Explain a difficult topic","Learn step by step"],
+      ["💻","Help me write code","Build and debug projects"],
+      ["✎","Write a professional email","Create polished writing"],
+      ["🧠","Create a 10-question quiz","Test what I know"],
+      ["📝","Summarize my notes","Turn text into key points"]
     ].forEach(([icon,label,sub]) => {
       const button = document.createElement("button");
       button.className = "suggestion";
@@ -862,6 +871,49 @@ input.addEventListener("keydown",event => {
     sendMessage();
   }
 });
+
+let voiceRecognition = null;
+let voiceIsListening = false;
+function toggleVoiceInput(){
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const button = document.getElementById("voiceBtn");
+  if(!SpeechRecognition){
+    alert("Voice input is not supported in this browser. Try the latest Chrome browser.");
+    return;
+  }
+  if(voiceIsListening){
+    voiceRecognition?.stop();
+    return;
+  }
+  voiceRecognition = new SpeechRecognition();
+  voiceRecognition.lang = "en-IN";
+  voiceRecognition.interimResults = true;
+  voiceRecognition.continuous = false;
+  voiceRecognition.onstart = () => {
+    voiceIsListening = true;
+    button.classList.add("listening");
+    button.textContent = "●";
+    button.title = "Listening...";
+  };
+  voiceRecognition.onresult = event => {
+    let transcript = "";
+    for(let i=0;i<event.results.length;i++) transcript += event.results[i][0].transcript;
+    input.value = transcript;
+    input.dispatchEvent(new Event("input"));
+  };
+  voiceRecognition.onerror = event => {
+    console.warn("Voice input:",event.error);
+    if(event.error === "not-allowed") alert("Microphone permission was denied. Allow microphone access in browser settings.");
+  };
+  voiceRecognition.onend = () => {
+    voiceIsListening = false;
+    button.classList.remove("listening");
+    button.textContent = "🎙";
+    button.title = "Voice input";
+  };
+  try { voiceRecognition.start(); }
+  catch(error){ console.error("Could not start voice input:",error); }
+}
 
 function getConversationText() {
   const chat = getCurrentChat();
