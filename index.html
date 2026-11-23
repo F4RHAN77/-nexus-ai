@@ -245,6 +245,7 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_v3hYBvWWXkmBltBt_JcWlg_Yjn61UY8
 const supabaseClient = window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 let authMode = "login";
 const authForm = document.getElementById("authForm");
+authForm.noValidate = true; // Recovery screens hide fields; validate explicitly in the submit handler.
 const authError = document.getElementById("authError");
 const passwordInput = document.getElementById("authPassword");
 const passwordToggle = document.getElementById("passwordToggle");
@@ -282,7 +283,7 @@ function showPasswordRecovery(){
   document.getElementById("authSubmit").textContent="Update password";
   document.getElementById("authSubtitle").textContent="Choose a new password for your NEXUS AI account.";
   authError.style.color="#aeb8d6";
-  authError.textContent="Use at least 8 characters.";
+  authError.textContent="";
 }
 function showForgotPanel(){
   authMode="forgot";
