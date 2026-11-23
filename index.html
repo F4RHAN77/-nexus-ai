@@ -41,7 +41,10 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 .topbar{height:68px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 25px;border-bottom:1px solid var(--line);background:rgba(8,11,21,.72);backdrop-filter:blur(22px)}
 .top-left{display:flex;align-items:center;gap:13px}.menu-btn{background:#131a2c;border:1px solid var(--line);color:#e8ebff;font-size:19px;padding:8px 10px;border-radius:11px;transition:.2s}.menu-btn:hover{background:#202a45;border-color:#7669d9}
 .top-title{font-size:14px;font-weight:800;letter-spacing:.55px}.top-status{font-size:10px;color:#55dfb1;margin-top:4px}
-.top-actions{display:flex;gap:8px}.small-btn{border:1px solid var(--line);background:rgba(21,28,48,.8);color:#dce2ff;padding:8px 13px;border-radius:10px;font-size:11px;font-weight:650;transition:.2s}
+.top-actions{display:flex;gap:8px;align-items:center}
+.user-chip{display:flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid var(--line);border-radius:11px;background:rgba(21,28,48,.8);color:#dce2ff;font-size:11px;max-width:180px}
+.user-chip .user-avatar{width:25px;height:25px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,#9b6bff,#25c7d4);font-weight:800;color:white;flex-shrink:0}
+.user-chip .user-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.small-btn{border:1px solid var(--line);background:rgba(21,28,48,.8);color:#dce2ff;padding:8px 13px;border-radius:10px;font-size:11px;font-weight:650;transition:.2s}
 .small-btn:hover{background:#222d4a;border-color:#6e6cce;transform:translateY(-1px)}
 .messages{flex:1;overflow-y:auto;padding:28px 25px 45px;scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:#303b5d transparent}
 .welcome{max-width:900px;margin:7vh auto 0;text-align:center;animation:rise .65s ease both}
@@ -190,6 +193,7 @@ button,input,textarea{font:inherit}button{cursor:pointer}
       </div>
 
       <div class="top-actions">
+        <div class="user-chip" title="Signed-in account"><span class="user-avatar" id="userAvatar">U</span><span class="user-name" id="userDisplayName">User</span></div>
         <button class="small-btn" onclick="exportPDF()">PDF</button>
         <button class="small-btn" onclick="exportPPT()">PPT</button>
         <button class="auth-logout" id="logoutBtn">Log out</button>
@@ -315,8 +319,15 @@ document.getElementById("logoutBtn").addEventListener("click",async()=>{
 let activeUserId = null;
 let chatLoadToken = 0;
 
+function updateUserBadge(user){
+  const metadata = user?.user_metadata || {};
+  const name = String(metadata.full_name || metadata.name || user?.email?.split("@")[0] || "User").trim();
+  document.getElementById("userDisplayName").textContent = name;
+  document.getElementById("userAvatar").textContent = (name[0] || "U").toUpperCase();
+}
 async function applyAuthSession(session){
   const signedIn=!!session?.user;
+  if(signedIn) updateUserBadge(session.user);
   document.getElementById("authScreen").style.display=signedIn?"none":"grid";
   document.getElementById("nexusApp").style.visibility=signedIn?"visible":"hidden";
   if(signedIn && activeUserId !== session.user.id){
