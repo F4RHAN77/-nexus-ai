@@ -112,6 +112,8 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 .password-wrap input{width:100%;padding-right:70px}
 .password-toggle{position:absolute;right:9px;top:50%;transform:translateY(-50%);border:1px solid #394463;background:#202943;color:#d9ddf4;border-radius:8px;padding:6px 9px;font-size:11px;cursor:pointer}
 .password-toggle:hover{background:#303c60;color:#fff}
+.password-hint{margin:8px 0 14px!important;color:#929bb7!important;font-size:11px!important;line-height:1.55!important}
+.password-hint strong{color:#cbd2eb}.password-hint span{color:#7f8aa8}
 .auth-actions{display:flex;gap:9px;margin-top:18px}.auth-actions button,.auth-logout{border:1px solid #554a91;border-radius:10px;padding:11px 14px;color:white;background:linear-gradient(110deg,#7138d8,#3155d9);font-weight:700}
 .auth-actions .alt{background:#252d4d;border-color:#394565}.auth-error{color:#ff9b9b!important;min-height:18px}.auth-logout{font-size:11px;padding:8px 10px}
 
@@ -131,6 +133,7 @@ button,input,textarea{font:inherit}button{cursor:pointer}
       <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters">
       <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password" aria-pressed="false">👁 Show</button>
     </div>
+    <p class="password-hint" id="passwordHint">Password must be at least 8 characters. For a stronger password, mix uppercase and lowercase letters, a number, and a symbol.<br><strong>Example:</strong> BlueSky#4821 <span>(Use your own password, not this example.)</span></p>
     <div class="auth-actions">
       <button type="submit" id="authSubmit">Sign in</button>
       <button type="button" class="alt" id="authToggle">Create account</button>
