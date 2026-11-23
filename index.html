@@ -151,6 +151,7 @@ button,input,textarea{font:inherit}button{cursor:pointer}
       <button type="submit" id="authSubmit">Sign in</button>
       <button type="button" class="alt" id="authToggle">Create account</button>
     </div>
+    <button type="button" id="forgotPasswordBtn" class="text-link" style="display:block;margin:12px auto 0;background:none;border:0;color:#a99cff;font-size:12px;cursor:pointer">Forgot password?</button>
     <p id="authError" class="auth-error" role="status"></p>
     <section id="otpPanel" style="display:none;margin-top:16px">
       <label for="authOtp">Email verification code</label>
@@ -241,6 +242,21 @@ passwordToggle.addEventListener("click",()=>{
   passwordToggle.setAttribute("aria-pressed",String(show));
 });
 let pendingVerificationEmail = "";
+document.getElementById("forgotPasswordBtn").addEventListener("click",async()=>{
+  const email=document.getElementById("authEmail").value.trim();
+  if(!email){authError.style.color="#ff9b9b";authError.textContent="Enter your email address first.";return;}
+  const button=document.getElementById("forgotPasswordBtn");
+  button.disabled=true;
+  try{
+    const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+    if(error) throw error;
+    authError.style.color="#48e0b0";
+    authError.textContent="If this email is registered, a password reset link has been sent. Check your inbox.";
+  }catch(error){
+    authError.style.color="#ff9b9b";
+    authError.textContent=error.message||"Could not send password reset email.";
+  }finally{button.disabled=false;}
+});
 document.getElementById("authToggle").addEventListener("click",()=>{
   authMode = authMode === "login" ? "signup" : "login";
   document.getElementById("authSubmit").textContent = authMode === "login" ? "Sign in" : "Create account";
