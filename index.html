@@ -126,6 +126,10 @@ button,input,textarea{font:inherit}button{cursor:pointer}
     <div class="logo" style="margin-bottom:18px">N</div>
     <h1>Welcome to NEXUS AI</h1>
     <p id="authSubtitle">Sign in with your verified email to continue.</p>
+    <div id="authNameField" style="display:none">
+      <label for="authName">Your name</label>
+      <input id="authName" type="text" autocomplete="name" maxlength="60" placeholder="Enter your name">
+    </div>
     <label for="authEmail">Email address</label>
     <input id="authEmail" type="email" autocomplete="email" required placeholder="you@example.com">
     <label for="authPassword">Password</label>
@@ -232,6 +236,11 @@ document.getElementById("authToggle").addEventListener("click",()=>{
   document.getElementById("authToggle").textContent = authMode === "login" ? "Create account" : "Back to sign in";
   document.getElementById("authSubtitle").textContent = authMode === "login" ? "Sign in with your email and password." : "Create your NEXUS AI account. We will email you a verification code.";
   document.getElementById("authPassword").autocomplete = authMode === "login" ? "current-password" : "new-password";
+  const nameField = document.getElementById("authNameField");
+  const nameInput = document.getElementById("authName");
+  nameField.style.display = authMode === "signup" ? "block" : "none";
+  nameInput.required = authMode === "signup";
+  document.getElementById("passwordHint").style.display = authMode === "signup" ? "block" : "none";
   document.getElementById("otpPanel").style.display="none";
   document.getElementById("authSubmit").style.display="";
   authError.textContent = "";
@@ -243,7 +252,13 @@ authForm.addEventListener("submit",async e=>{
   const button=document.getElementById("authSubmit"); button.disabled=true;
   try {
     if(authMode==="signup"){
-      const {data,error}=await supabaseClient.auth.signUp({email,password});
+      const fullName=document.getElementById("authName").value.trim();
+      if(!fullName) throw new Error("Please enter your name.");
+      const {data,error}=await supabaseClient.auth.signUp({
+        email,
+        password,
+        options:{data:{full_name:fullName,name:fullName}}
+      });
       if(error) throw error;
       if(data.session){
         authError.style.color="#48e0b0";
