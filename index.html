@@ -263,9 +263,13 @@ function showPasswordRecovery(){
   document.getElementById("authNameField").style.display="none";
   document.getElementById("forgotPanel").style.display="none";
   document.getElementById("authPassword").style.display="";
+  document.getElementById("authPassword").required=true;
+  document.getElementById("authEmail").required=false;
   document.querySelector('label[for="authPassword"]').style.display="";
   document.getElementById("passwordToggle").style.display="";
   document.getElementById("authEmail").style.display="none";
+  document.getElementById("authEmail").required=false;
+  document.getElementById("authPassword").required=true;
   document.querySelector('label[for="authEmail"]').style.display="none";
   document.getElementById("authPassword").value="";
   document.getElementById("authPassword").autocomplete="new-password";
@@ -284,8 +288,12 @@ function showForgotPanel(){
   authMode="forgot";
   document.getElementById("authSubtitle").textContent="Recover your NEXUS AI account securely.";
   document.getElementById("authEmail").style.display="";
+  document.getElementById("authEmail").required=true;
+  document.getElementById("authPassword").required=true;
   document.querySelector('label[for="authEmail"]').style.display="";
   document.getElementById("authPassword").style.display="none";
+  document.getElementById("authPassword").required=false;
+  document.getElementById("authEmail").required=true;
   document.querySelector('label[for="authPassword"]').style.display="none";
   document.getElementById("passwordToggle").style.display="none";
   document.getElementById("passwordHint").style.display="none";
