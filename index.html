@@ -242,6 +242,26 @@ passwordToggle.addEventListener("click",()=>{
   passwordToggle.setAttribute("aria-pressed",String(show));
 });
 let pendingVerificationEmail = "";
+function showPasswordRecovery(){
+  authMode="recovery";
+  document.getElementById("authScreen").style.display="grid";
+  document.getElementById("nexusApp").style.visibility="hidden";
+  document.getElementById("authNameField").style.display="none";
+  document.getElementById("authEmail").style.display="none";
+  document.querySelector('label[for="authEmail"]').style.display="none";
+  document.getElementById("authPassword").value="";
+  document.getElementById("authPassword").autocomplete="new-password";
+  document.getElementById("authPassword").placeholder="Enter your new password";
+  document.getElementById("authPassword").focus();
+  document.getElementById("authToggle").style.display="none";
+  document.getElementById("forgotPasswordBtn").style.display="none";
+  document.getElementById("passwordHint").style.display="block";
+  document.getElementById("authSubmit").style.display="";
+  document.getElementById("authSubmit").textContent="Update password";
+  document.getElementById("authSubtitle").textContent="Choose a new password for your NEXUS AI account.";
+  authError.style.color="#aeb8d6";
+  authError.textContent="Use at least 8 characters.";
+}
 document.getElementById("forgotPasswordBtn").addEventListener("click",async()=>{
   const email=document.getElementById("authEmail").value.trim();
   if(!email){authError.style.color="#ff9b9b";authError.textContent="Enter your email address first.";return;}
@@ -278,7 +298,24 @@ authForm.addEventListener("submit",async e=>{
   const password=document.getElementById("authPassword").value;
   const button=document.getElementById("authSubmit"); button.disabled=true;
   try {
-    if(authMode==="signup"){
+    if(authMode==="recovery"){
+      if(password.length<8) throw new Error("New password must be at least 8 characters.");
+      const {error}=await supabaseClient.auth.updateUser({password});
+      if(error) throw error;
+      authMode="login";
+      document.getElementById("authPassword").value="";
+      document.getElementById("authPassword").autocomplete="current-password";
+      document.getElementById("authEmail").style.display="";
+      document.querySelector('label[for="authEmail"]').style.display="";
+      document.getElementById("authNameField").style.display="none";
+      document.getElementById("authToggle").style.display="";
+      document.getElementById("forgotPasswordBtn").style.display="block";
+      document.getElementById("passwordHint").style.display="none";
+      button.textContent="Sign in";
+      document.getElementById("authSubtitle").textContent="Password updated. Sign in with your new password.";
+      authError.style.color="#48e0b0";
+      authError.textContent="Your password has been updated successfully. You can now sign in.";
+    } else if(authMode==="signup"){
       const fullName=document.getElementById("authName").value.trim();
       if(!fullName) throw new Error("Please enter your name.");
       const {data,error}=await supabaseClient.auth.signUp({
@@ -446,7 +483,10 @@ async function saveChat(chat){
   if(error) throw error;
   chat.updatedAt = Date.now();
 }
-supabaseClient.auth.onAuthStateChange((_event,session)=>applyAuthSession(session));
+supabaseClient.auth.onAuthStateChange((event,session)=>{
+  if(event==="PASSWORD_RECOVERY"){showPasswordRecovery();return;}
+  applyAuthSession(session);
+});
 supabaseClient.auth.getSession().then(({data})=>applyAuthSession(data.session));
 
 const API_URL = "https://nexus-ai.pagalkudi14447-6d9.workers.dev"; // Cloudflare Worker endpoint
