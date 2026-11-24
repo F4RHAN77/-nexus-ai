@@ -114,7 +114,7 @@ export default {
       const imageDataUrl = body.imageDataUrl;
       if (imageDataUrl !== undefined && imageDataUrl !== null) {
         if (typeof imageDataUrl !== "string" ||
-            !/^data:image\\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(imageDataUrl) ||
+            !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(imageDataUrl) ||
             imageDataUrl.length > 2500000) {
           return Response.json(
             { error: "Invalid image. Please upload a JPEG image smaller than the supported limit." },
