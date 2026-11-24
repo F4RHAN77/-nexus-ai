@@ -109,7 +109,38 @@ export default {
         ...validHistory
       ];
 
-      // Generate AI response
+      // Optional image input for vision, OCR, handwriting and document-photo analysis.
+      // Only accept compressed JPEG data URLs from the signed-in frontend.
+      const imageDataUrl = body.imageDataUrl;
+      if (imageDataUrl !== undefined && imageDataUrl !== null) {
+        if (typeof imageDataUrl !== "string" ||
+            !/^data:image\\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(imageDataUrl) ||
+            imageDataUrl.length > 2500000) {
+          return Response.json(
+            { error: "Invalid image. Please upload a JPEG image smaller than the supported limit." },
+            { status: 400, headers: corsHeaders }
+          );
+        }
+
+        const lastUserIndex = messages.map(item => item.role).lastIndexOf("user");
+        if (lastUserIndex < 0) {
+          return Response.json(
+            { error: "An image must be sent with a user message." },
+            { status: 400, headers: corsHeaders }
+          );
+        }
+
+        const imagePrompt = messages[lastUserIndex].content;
+        messages[lastUserIndex] = {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
+            { type: "text", text: imagePrompt }
+          ]
+        };
+      }
+
+      // Generate AI response. Gemma 4 accepts image_url content parts for vision input.
       const result = await env.AI.run(MODEL, {
         messages,
         max_tokens: 2048
