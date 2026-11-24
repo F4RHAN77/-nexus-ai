@@ -142,6 +142,15 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 .composer-area{position:relative}
 @media(max-width:700px){.file-menu{left:12px;bottom:70px}}
 
+
+.scan-modal{display:none;position:fixed;inset:0;z-index:120;background:#050713f2;align-items:center;justify-content:center;padding:18px}
+.scan-modal.show{display:flex}
+.scan-card{width:min(100%,560px);background:#111629;border:1px solid var(--line);border-radius:18px;padding:15px;box-shadow:0 20px 60px #000a}
+.scan-card video{width:100%;max-height:62vh;object-fit:contain;background:#050713;border-radius:12px}
+.scan-actions{display:flex;gap:9px;margin-top:12px}
+.scan-actions button{flex:1;border:1px solid #554a91;border-radius:10px;padding:11px;color:white;background:linear-gradient(110deg,#7138d8,#3155d9)}
+.scan-actions .scan-cancel{background:#252d4d;border-color:#394565}
+
 </style>
 </head>
 
@@ -241,6 +250,17 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 
     <div class="composer-area">
       <div class="attachment-preview" id="attachmentPreview"></div>
+      <div class="scan-modal" id="scanModal" role="dialog" aria-modal="true" aria-label="Live text scanner">
+        <div class="scan-card">
+          <div style="font-weight:750;margin:2px 0 12px">Live text scanner</div>
+          <video id="scanVideo" autoplay playsinline muted></video>
+          <div style="font-size:11px;color:#929bb7;margin-top:9px">Camera preview stays on this device. Tap “Read text now” to send one frame for OCR; the frame itself will not be saved in chat history.</div>
+          <div class="scan-actions">
+            <button type="button" onclick="captureLiveScan()">Read text now</button>
+            <button type="button" class="scan-cancel" onclick="stopLiveScan()">Cancel</button>
+          </div>
+        </div>
+      </div>
       <div class="file-menu" id="fileMenu">
         <button type="button" onclick="chooseAttachment('gallery')">🖼 Gallery photo</button>
         <button type="button" onclick="chooseAttachment('camera')">📷 Take photo</button>
@@ -1005,7 +1025,8 @@ function toggleFileMenu(){
 }
 function chooseAttachment(kind){
   document.getElementById("fileMenu").classList.remove("show");
-  const ids={gallery:"galleryInput",camera:"cameraInput",scan:"scanInput",document:"documentInput"};
+  if(kind==="scan"){startLiveTextScan();return;}
+  const ids={gallery:"galleryInput",camera:"cameraInput",document:"documentInput"};
   document.getElementById(ids[kind]).click();
 }
 function updateAttachmentPreview(){
@@ -1065,6 +1086,46 @@ document.addEventListener("click",event=>{
   const menu=document.getElementById("fileMenu");
   if(!menu.contains(event.target) && event.target!==document.getElementById("attachmentBtn")) menu.classList.remove("show");
 });
+
+
+let liveScanStream = null;
+async function startLiveTextScan(){
+  if(!navigator.mediaDevices?.getUserMedia){
+    alert("Live camera scan is not supported here. Open NEXUS AI in the latest Chrome using HTTPS.");
+    return;
+  }
+  try{
+    liveScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+    const video=document.getElementById("scanVideo");
+    video.srcObject=liveScanStream;
+    document.getElementById("scanModal").classList.add("show");
+    await video.play();
+  }catch(error){
+    stopLiveScan();
+    alert("Camera permission is needed for text scanning. "+(error.message||""));
+  }
+}
+function stopLiveScan(){
+  if(liveScanStream){liveScanStream.getTracks().forEach(track=>track.stop());liveScanStream=null;}
+  const video=document.getElementById("scanVideo");
+  if(video)video.srcObject=null;
+  document.getElementById("scanModal").classList.remove("show");
+}
+async function captureLiveScan(){
+  const video=document.getElementById("scanVideo");
+  if(!video.videoWidth){alert("Camera is not ready yet. Please wait a moment.");return;}
+  const scale=Math.min(1,1440/Math.max(video.videoWidth,video.videoHeight));
+  const canvas=document.createElement("canvas");
+  canvas.width=Math.max(1,Math.round(video.videoWidth*scale));
+  canvas.height=Math.max(1,Math.round(video.videoHeight*scale));
+  canvas.getContext("2d").drawImage(video,0,0,canvas.width,canvas.height);
+  const dataUrl=canvas.toDataURL("image/jpeg",0.82);
+  stopLiveScan();
+  pendingAttachment={name:"Live camera text scan",type:"image/jpeg",dataUrl,scanOnly:true};
+  input.value="Read and transcribe all visible printed or handwritten text accurately. Preserve line breaks, spelling and numbers. Return the recognized text clearly, and mark uncertain words.";
+  updateAttachmentPreview();
+  await sendMessage();
+}
 
 async function handleDocumentSelection(event){
   const file=event.target.files?.[0];event.target.value="";
