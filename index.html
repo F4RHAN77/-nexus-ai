@@ -550,11 +550,25 @@ async function applyAuthSession(session){
   }
 }
 
+function removeSavedPhotoAttachments(messages){
+  let changed=false;
+  const cleaned=(Array.isArray(messages)?messages:[]).map(msg=>{
+    if(msg && msg.attachment){
+      changed=true;
+      const {attachment,...safeMessage}=msg;
+      return safeMessage;
+    }
+    return msg;
+  });
+  return {messages:cleaned,changed};
+}
+
 function mapDatabaseChat(row){
+  const cleaned=removeSavedPhotoAttachments(row.messages);
   return {
     id: row.id,
     title: row.title || "New Chat",
-    messages: Array.isArray(row.messages) ? row.messages : [],
+    messages: cleaned.messages,
     updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now()
   };
 }
@@ -568,7 +582,7 @@ async function migrateLocalChats(userId){
     const rows = oldChats.map(chat => ({
       user_id: userId,
       title: String(chat.title || "New Chat").slice(0,120),
-      messages: Array.isArray(chat.messages) ? chat.messages : [],
+      messages: removeSavedPhotoAttachments(chat.messages).messages,
       updated_at: new Date(Number(chat.updatedAt) || Date.now()).toISOString()
     }));
     const {error} = await supabaseClient.from("chats").insert(rows);
@@ -589,6 +603,17 @@ async function loadChats(){
     if(error) throw error;
     if(token !== chatLoadToken || activeUserId !== user.id) return;
     chats = (data || []).map(mapDatabaseChat);
+    // Remove photo data saved by older versions so chat history keeps text only.
+    const cleanupJobs=(data || []).filter(row=>removeSavedPhotoAttachments(row.messages).changed)
+      .map(row=>{
+        const cleaned=removeSavedPhotoAttachments(row.messages).messages;
+        return supabaseClient.from("chats").update({messages:cleaned})
+          .eq("id",row.id).eq("user_id",user.id);
+      });
+    if(cleanupJobs.length){
+      const cleanupResults=await Promise.all(cleanupJobs);
+      cleanupResults.forEach(result=>{if(result.error)console.error("Old photo cleanup error:",result.error);});
+    }
     if(chats.length){
       currentChatId = chats[0].id;
       renderChatList();
@@ -952,14 +977,8 @@ async function sendMessage() {
 
   if (!chat.messages.length) chat.title = messageText.slice(0,35);
 
+  // Only text is stored in chat history. The selected photo is sent to the AI request only.
   const userMessage = {role:"user",content:messageText};
-  if (attachment && !attachment.scanOnly) {
-    userMessage.attachment = {
-      name: attachment.name,
-      type: attachment.type,
-      dataUrl: attachment.dataUrl
-    };
-  }
   chat.messages.push(userMessage);
   chat.updatedAt = Date.now();
 
@@ -1074,6 +1093,7 @@ async function handleImageSelection(event,scanOnly=false){
   try{
     const dataUrl=await loadImageDataUrl(file);
     pendingAttachment={name:file.name||"camera-image.jpg",type:"image/jpeg",dataUrl,scanOnly};
+    alert("Aapka diya hua photo chat history mein save nahi hoga. Photo sirf is request ko process karne ke liye use hoga.");
     if(scanOnly && !input.value.trim()) input.value="Scan this page and transcribe the handwritten or printed text accurately.";
     updateAttachmentPreview();
     input.focus();
@@ -1122,6 +1142,7 @@ async function captureLiveScan(){
   const dataUrl=canvas.toDataURL("image/jpeg",0.82);
   stopLiveScan();
   pendingAttachment={name:"Live camera text scan",type:"image/jpeg",dataUrl,scanOnly:true};
+  alert("Aapki camera photo chat history mein save nahi hogi. Photo sirf text scan karne ke liye use hogi.");
   input.value="Read and transcribe all visible printed or handwritten text accurately. Preserve line breaks, spelling and numbers. Return the recognized text clearly, and mark uncertain words.";
   updateAttachmentPreview();
   await sendMessage();
