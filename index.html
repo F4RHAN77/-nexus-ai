@@ -1076,7 +1076,7 @@ function addTyping() {
 
   const text = document.createElement("div");
   text.className = "typing";
-  text.textContent = "NEXUS AI is processing. You can switch apps; the reply will be ready when you return.";
+  text.textContent = "NEXUS AI is thinking...";
 
   wrapper.append(avatar,text);
   messagesEl.appendChild(wrapper);
@@ -1145,6 +1145,8 @@ async function sendMessage() {
       });
       const jobData = await jobResponse.json().catch(() => ({}));
       if (jobResponse.ok && jobData.jobId) {
+        const typingText=document.querySelector("#typingIndicator .typing");
+        if(typingText)typingText.textContent="NEXUS AI is processing on the server. You can switch apps; the reply will be ready when you return.";
         await pollBackgroundJob(jobData.jobId,chat.id);
       } else if (jobData.fallback === true) {
         // Keep the existing synchronous path working until the Queue is configured.
