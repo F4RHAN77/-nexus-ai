@@ -48,14 +48,14 @@ async function supabaseServiceRequest(env,path,options={}){
 }
 function cleanHistory(body){
   const history=Array.isArray(body.messages)?body.messages:(Array.isArray(body.history)?body.history:[]);
-  const valid=history.filter(item=>
+  const source=history.filter(item=>
     item&&["user","assistant"].includes(item.role)&&
     typeof item.content==="string"&&item.content.trim()
-  ).slice(-8).map(item=>({role:item.role,content:item.content.slice(-3000)}));
-  const last=valid[valid.length-1];
-  if(!last||last.role!=="user"||last.content!==body.message){
-    valid.push({role:"user",content:body.message.trim()});
-  }
+  );
+  const sourceLast=source[source.length-1];
+  const latestAlreadyIncluded=!!sourceLast&&sourceLast.role==="user"&&sourceLast.content.trim()===body.message.trim();
+  const valid=source.slice(-8).map(item=>({role:item.role,content:item.content.slice(-3000)}));
+  if(!latestAlreadyIncluded)valid.push({role:"user",content:body.message.trim()});
   return valid;
 }
 function buildMessages(message,history,imageDataUrl=null){
