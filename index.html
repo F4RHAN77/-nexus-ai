@@ -700,7 +700,7 @@ function restoreAuthDraft(){
     if(!raw)return;
     const state=JSON.parse(raw);
     if(!state || typeof state!=="object")return;
-    authMode=state.authMode==="signup"||state.authMode==="forgot"||state.authMode==="recovery"?"login":(state.authMode||"login");
+    authMode=state.authMode||"login";
     document.getElementById("authEmail").value=state.email||"";
     document.getElementById("authName").value=state.name||"";
     document.getElementById("authOtp").value=state.otp||"";
