@@ -1,4 +1,3 @@
-
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nexus-ai",
@@ -16,5 +15,21 @@
         "period": 60
       }
     }
-  ]
+  ],
+  "queues": {
+    "producers": [
+      {
+        "queue": "nexus-ai-tasks",
+        "binding": "AI_QUEUE"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "nexus-ai-tasks",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_retries": 3
+      }
+    ]
+  }
 }
