@@ -419,7 +419,7 @@ document.getElementById("verifyRecoveryOtpBtn").addEventListener("click",async()
   }catch(error){
     authError.style.color="#ff9b9b";
     authError.textContent=error.message||"OTP verification failed.";
-  }finally{button.disabled=false;}
+  }finally{button.disabled=false;saveAuthDraft();}
 });
 document.getElementById("authToggle").addEventListener("click",()=>{
   authMode = authMode === "login" ? "signup" : "login";
@@ -507,7 +507,9 @@ document.getElementById("verifyOtpBtn").addEventListener("click",async()=>{
     document.getElementById("authToggle").textContent="Create account";
     document.getElementById("authSubtitle").textContent="Your email is verified. Sign in to continue.";
     pendingVerificationEmail="";
-  }catch(err){authError.style.color="#ff9b9b";authError.textContent=err.message||"Code verification failed.";}
+    document.getElementById("authOtp").value="";
+    sessionStorage.removeItem(AUTH_DRAFT_KEY);
+  }catch(err){authError.style.color="#ff9b9b";authError.textContent=err.message||"Code verification failed.";saveAuthDraft();}
   finally{verify.disabled=false;}
 });
 document.getElementById("resendOtpBtn").addEventListener("click",async()=>{
@@ -535,7 +537,7 @@ function updateUserBadge(user){
 }
 async function applyAuthSession(session){
   const signedIn=!!session?.user;
-  if(signedIn) updateUserBadge(session.user);
+  if(signedIn){updateUserBadge(session.user);try{sessionStorage.removeItem(AUTH_DRAFT_KEY);}catch(e){}}
   document.getElementById("authScreen").style.display=signedIn?"none":"grid";
   document.getElementById("nexusApp").style.visibility=signedIn?"visible":"hidden";
   if(signedIn && activeUserId !== session.user.id){
@@ -621,6 +623,7 @@ async function loadChats(){
     } else {
       await createChat();
     }
+    syncBackgroundJobs().catch(error=>console.warn("Background job sync:",error.message));
   } catch(error) {
     console.error("Supabase chat loading error:",error);
     alert("Chat History load nahi hui: " + (error.message || "Unknown database error"));
@@ -656,6 +659,141 @@ async function saveChat(chat){
   if(error) throw error;
   chat.updatedAt = Date.now();
 }
+const AUTH_DRAFT_KEY = "nexus_ai_auth_draft_v1";
+const authDraftDisplayIds = ["authNameField","authEmail","authPassword","authSubmit","authToggle","forgotPasswordBtn","otpPanel","forgotPanel","forgotOtpEntry","forgotOtpChoice","forgotLinkChoice","passwordHint","passwordToggle"];
+function saveAuthDraft(){
+  try{
+    if(document.getElementById("authScreen").style.display==="none"){
+      sessionStorage.removeItem(AUTH_DRAFT_KEY);
+      return;
+    }
+    const displays={};
+    authDraftDisplayIds.forEach(id=>{const el=document.getElementById(id);if(el)displays[id]=el.style.display;});
+    const state={
+      authMode,
+      email:document.getElementById("authEmail").value,
+      name:document.getElementById("authName").value,
+      otp:document.getElementById("authOtp").value,
+      recoveryOtp:document.getElementById("recoveryOtp").value,
+      pendingVerificationEmail,
+      displays,
+      emailLabelDisplay:document.querySelector('label[for="authEmail"]').style.display,
+      passwordLabelDisplay:document.querySelector('label[for="authPassword"]').style.display,
+      subtitle:document.getElementById("authSubtitle").textContent,
+      submitText:document.getElementById("authSubmit").textContent,
+      toggleText:document.getElementById("authToggle").textContent,
+      forgotHelp:document.getElementById("forgotHelp").textContent,
+      errorText:authError.textContent,
+      errorColor:authError.style.color,
+      emailRequired:document.getElementById("authEmail").required,
+      passwordRequired:document.getElementById("authPassword").required,
+      nameRequired:document.getElementById("authName").required,
+      passwordAutocomplete:document.getElementById("authPassword").autocomplete,
+      passwordPlaceholder:document.getElementById("authPassword").placeholder
+    };
+    sessionStorage.setItem(AUTH_DRAFT_KEY,JSON.stringify(state));
+  }catch(error){console.warn("Could not preserve sign-in form state:",error);}
+}
+function restoreAuthDraft(){
+  try{
+    const raw=sessionStorage.getItem(AUTH_DRAFT_KEY);
+    if(!raw)return;
+    const state=JSON.parse(raw);
+    if(!state || typeof state!=="object")return;
+    authMode=state.authMode||"login";
+    document.getElementById("authEmail").value=state.email||"";
+    document.getElementById("authName").value=state.name||"";
+    document.getElementById("authOtp").value=state.otp||"";
+    document.getElementById("recoveryOtp").value=state.recoveryOtp||"";
+    pendingVerificationEmail=state.pendingVerificationEmail||"";
+    Object.entries(state.displays||{}).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.style.display=value;});
+    document.querySelector('label[for="authEmail"]').style.display=state.emailLabelDisplay||"";
+    document.querySelector('label[for="authPassword"]').style.display=state.passwordLabelDisplay||"";
+    document.getElementById("authSubtitle").textContent=state.subtitle||"Sign in with your email and password.";
+    document.getElementById("authSubmit").textContent=state.submitText||"Sign in";
+    document.getElementById("authToggle").textContent=state.toggleText||"Create account";
+    document.getElementById("forgotHelp").textContent=state.forgotHelp||"";
+    authError.textContent=state.errorText||"";
+    authError.style.color=state.errorColor||"";
+    document.getElementById("authEmail").required=!!state.emailRequired;
+    document.getElementById("authPassword").required=!!state.passwordRequired;
+    document.getElementById("authName").required=!!state.nameRequired;
+    document.getElementById("authPassword").autocomplete=state.passwordAutocomplete||"current-password";
+    document.getElementById("authPassword").placeholder=state.passwordPlaceholder||"At least 8 characters";
+    document.getElementById("authPassword").value="";
+  }catch(error){console.warn("Could not restore sign-in form state:",error);}
+}
+restoreAuthDraft();
+authForm.addEventListener("input",saveAuthDraft);
+authForm.addEventListener("change",saveAuthDraft);
+authForm.addEventListener("click",()=>setTimeout(saveAuthDraft,0));
+window.addEventListener("pagehide",saveAuthDraft);
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="hidden")saveAuthDraft();
+  else if(typeof syncBackgroundJobs==="function")syncBackgroundJobs().catch(()=>{});
+});
+window.addEventListener("pageshow",()=>{if(typeof syncBackgroundJobs==="function")syncBackgroundJobs().catch(()=>{});});
+
+const runningBackgroundJobs = new Set();
+async function applyBackgroundJobResult(job){
+  const chat=chats.find(item=>item.id===job.chat_id);
+  if(!chat)return;
+  if(chat.messages.some(item=>item.jobId===job.id))return;
+  const content=job.status==="completed"
+    ? (job.reply||"NEXUS AI completed the task but returned an empty response.")
+    : ("Background task failed: "+(job.error||"Unknown processing error"));
+  chat.messages.push({role:"assistant",content,jobId:job.id});
+  chat.updatedAt=Date.now();
+  try{await saveChat(chat);}catch(error){console.error("Background reply save error:",error);}
+  renderChatList();
+  if(currentChatId===chat.id)renderMessages();
+}
+async function pollBackgroundJob(jobId,chatId){
+  if(runningBackgroundJobs.has(jobId))return;
+  runningBackgroundJobs.add(jobId);
+  try{
+    while(activeUserId){
+      const {data:{session}}=await supabaseClient.auth.getSession();
+      if(!session?.access_token)throw new Error("Sign in again to retrieve your AI reply.");
+      let response,data;
+      try{
+        response=await fetch(API_URL+"/jobs/"+encodeURIComponent(jobId),{
+          headers:{"Authorization":"Bearer "+session.access_token}
+        });
+        data=await response.json().catch(()=>({}));
+      }catch(error){
+        await new Promise(resolve=>setTimeout(resolve,3000));
+        continue;
+      }
+      if(!response.ok)throw new Error(data.error||"Could not retrieve background job. HTTP "+response.status);
+      if(data.status==="completed"||data.status==="failed"){
+        await applyBackgroundJobResult({...data,id:jobId,chat_id:data.chat_id||chatId});
+        return data;
+      }
+      await new Promise(resolve=>setTimeout(resolve,3000));
+    }
+  }finally{
+    runningBackgroundJobs.delete(jobId);
+  }
+}
+async function syncBackgroundJobs(){
+  if(!activeUserId)return;
+  const {data,error}=await supabaseClient.from("ai_jobs")
+    .select("id,chat_id,status,reply,error,created_at")
+    .eq("user_id",activeUserId)
+    .in("status",["queued","processing","completed","failed"])
+    .order("created_at",{ascending:false})
+    .limit(30);
+  if(error){console.warn("Background job table is not ready yet:",error.message);return;}
+  for(const job of data||[]){
+    if(job.status==="completed"||job.status==="failed"){
+      await applyBackgroundJobResult(job);
+    }else if(!runningBackgroundJobs.has(job.id)){
+      pollBackgroundJob(job.id,job.chat_id).catch(error=>console.warn("Background job polling:",error.message));
+    }
+  }
+}
+
 supabaseClient.auth.onAuthStateChange((event,session)=>{
   if(event==="PASSWORD_RECOVERY"){showPasswordRecovery();return;}
   applyAuthSession(session);
@@ -977,9 +1115,8 @@ async function sendMessage() {
 
   if (!chat.messages.length) chat.title = messageText.slice(0,35);
 
-  // Only text is stored in chat history. The selected photo is sent to the AI request only.
-  const userMessage = {role:"user",content:messageText};
-  chat.messages.push(userMessage);
+  // Only text is stored in chat history. The selected photo is sent only with its request.
+  chat.messages.push({role:"user",content:messageText});
   chat.updatedAt = Date.now();
 
   input.value = "";
@@ -997,40 +1134,65 @@ async function sendMessage() {
       role: msg.role,
       content: msg.content || ""
     }));
-    const response = await fetchWithRetry(API_URL,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        message:messageText,
-        messages:history,
-        imageDataUrl:attachment?.dataUrl || null
-      })
-    });
 
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(data.error || data.message || "Server error: HTTP " + response.status);
+    if (!attachment) {
+      const {data:{session}} = await supabaseClient.auth.getSession();
+      if (!session?.access_token) throw new Error("Please sign in again to continue.");
+      const jobResponse = await fetchWithRetry(API_URL + "/jobs",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer " + session.access_token},
+        body:JSON.stringify({message:messageText,messages:history,chatId:chat.id})
+      });
+      const jobData = await jobResponse.json().catch(() => ({}));
+      if (jobResponse.ok && jobData.jobId) {
+        const typingText=document.querySelector("#typingIndicator .typing");
+        if(typingText)typingText.textContent="NEXUS AI is processing on the server. You can switch apps; the reply will be ready when you return.";
+        await pollBackgroundJob(jobData.jobId,chat.id);
+      } else if (jobData.fallback === true) {
+        // Keep the existing synchronous path working until the Queue is configured.
+        const response = await fetchWithRetry(API_URL,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({message:messageText,messages:history,imageDataUrl:null})
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || data.message || "Server error: HTTP " + response.status);
+        const reply = data.reply || data.response || data.result || data.output;
+        if (typeof reply !== "string" || !reply.trim()) throw new Error("AI ne empty response diya. Worker response check karo.");
+        chat.messages.push({role:"assistant",content:reply.trim()});
+      } else {
+        throw new Error(jobData.error || jobData.message || "Background job submit nahi hua. HTTP " + jobResponse.status);
+      }
+    } else {
+      // Images remain request-only and are not placed in the background queue or chat history.
+      const response = await fetchWithRetry(API_URL,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({message:messageText,messages:history,imageDataUrl:attachment.dataUrl || null})
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || data.message || "Server error: HTTP " + response.status);
+      const reply = data.reply || data.response || data.result || data.output;
+      if (typeof reply !== "string" || !reply.trim()) throw new Error("AI ne empty response diya. Worker response check karo.");
+      chat.messages.push({role:"assistant",content:reply.trim()});
     }
-    const reply = data.reply || data.response || data.result || data.output;
-    if (typeof reply !== "string" || !reply.trim()) {
-      throw new Error("AI ne empty response diya. Worker response check karo.");
-    }
-    chat.messages.push({role:"assistant",content:reply.trim()});
   } catch(error) {
     console.error("NEXUS AI error:",error);
-    chat.messages.push({
-      role:"assistant",
-      content:"Sorry, NEXUS AI se connection nahi ho paya.\n\nError: " +
-        (error.message || "Unknown error") +
-        "\n\nInternet connection aur Cloudflare Worker check karein."
-    });
+    if (!chat.messages.some(msg=>msg.role==="assistant" && msg.jobId)) {
+      chat.messages.push({
+        role:"assistant",
+        content:"Sorry, NEXUS AI se connection nahi ho paya.\n\nError: " +
+          (error.message || "Unknown error") +
+          "\n\nInternet connection aur Cloudflare Worker check karein."
+      });
+    }
   }
 
   document.getElementById("typingIndicator")?.remove();
   chat.updatedAt = Date.now();
   try { await saveChat(chat); } catch(error) { console.error("Chat save error:",error); }
   renderChatList();
-  renderMessages();
+  if(currentChatId===chat.id) renderMessages();
   isSending = false;
   sendBtn.disabled = false;
   attachmentBtn.disabled = false;
