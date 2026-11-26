@@ -160,6 +160,11 @@ button,input,textarea{font:inherit}button{cursor:pointer}
     <div class="logo" style="margin-bottom:18px">N</div>
     <h1>Welcome to NEXUS AI</h1>
     <p id="authSubtitle">New to NEXUS AI? Choose Create account. Already registered? Choose Sign in.</p>
+    <div id="authChoice" style="display:grid;gap:14px;margin:24px 0">
+      <button type="button" id="chooseSignup" style="padding:16px;border:0;border-radius:14px;background:linear-gradient(110deg,#7138d8,#3155d9);color:white;font-size:16px;font-weight:700;cursor:pointer">✨ Create Account <span style="display:block;font-size:12px;font-weight:400;margin-top:5px">I'm new to NEXUS AI</span></button>
+      <button type="button" id="chooseLogin" style="padding:16px;border:1px solid #554a91;border-radius:14px;background:#202844;color:white;font-size:16px;font-weight:700;cursor:pointer">🔑 Sign In <span style="display:block;font-size:12px;font-weight:400;margin-top:5px">I already have an account</span></button>
+    </div>
+    <button type="button" id="backToAuthChoice" style="display:none;margin:0 auto 14px;background:none;border:0;color:#a99cff;cursor:pointer">← Back to options</button>
     <div id="authNameField" style="display:none">
       <label for="authName">Your name</label>
       <input id="authName" type="text" autocomplete="name" maxlength="60" placeholder="Enter your name">
@@ -291,6 +296,36 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 const SUPABASE_URL = "https://hrtbmmahyxrwppynbrvr.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_v3hYBvWWXkmBltBt_JcWlg_Yjn61UY8";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+let authMode = "choice";
+const authChoice = document.getElementById("authChoice");
+const authFieldIds = ["authNameField","authEmail","authPassword","passwordToggle","passwordHint","authSubmit","authToggle","forgotPasswordBtn"];
+function setAuthChoice(mode){
+  authMode=mode;
+  authChoice.style.display="none";
+  document.getElementById("backToAuthChoice").style.display="block";
+  authFieldIds.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=(id==="authNameField"?(mode==="signup"?"block":"none"):(id==="passwordHint"?"block":""));});
+  document.querySelector('label[for="authEmail"]').style.display="";
+  document.querySelector('label[for="authPassword"]').style.display="";
+  document.getElementById("authSubmit").textContent=mode==="signup"?"Create Account":"Sign In";
+  document.getElementById("authToggle").textContent=mode==="signup"?"Back to Sign In":"Create Account";
+  document.getElementById("authSubtitle").textContent=mode==="signup"?"Create your free account to get started.":"Welcome back! Sign in to continue.";
+  document.getElementById("authName").required=mode==="signup";
+  document.getElementById("authPassword").autocomplete=mode==="signup"?"new-password":"current-password";
+  document.getElementById("forgotPasswordBtn").style.display=mode==="login"?"block":"none";
+  document.getElementById("passwordHint").style.display=mode==="signup"?"block":"none";
+  document.getElementById("authError").textContent="";
+}
+document.getElementById("chooseSignup").addEventListener("click",()=>setAuthChoice("signup"));
+document.getElementById("chooseLogin").addEventListener("click",()=>setAuthChoice("login"));
+document.getElementById("backToAuthChoice").addEventListener("click",()=>{
+  authMode="choice";authChoice.style.display="grid";
+  document.getElementById("backToAuthChoice").style.display="none";
+  authFieldIds.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display="none";});
+  document.querySelector('label[for="authEmail"]').style.display="none";
+  document.querySelector('label[for="authPassword"]').style.display="none";
+  document.getElementById("authSubtitle").textContent="Choose an option to continue.";
+  document.getElementById("authName").required=false;
+});
 let authMode = "login";
 const authForm = document.getElementById("authForm");
 authForm.noValidate = true; // Recovery screens hide fields; validate explicitly in the submit handler.
