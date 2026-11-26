@@ -159,7 +159,7 @@ button,input,textarea{font:inherit}button{cursor:pointer}
   <form class="auth-card" id="authForm">
     <div class="logo" style="margin-bottom:18px">N</div>
     <h1>Welcome to NEXUS AI</h1>
-    <p id="authSubtitle">Sign in with your verified email to continue.</p>
+    <p id="authSubtitle">New to NEXUS AI? Choose Create account. Already registered? Choose Sign in.</p>
     <div id="authNameField" style="display:none">
       <label for="authName">Your name</label>
       <input id="authName" type="text" autocomplete="name" maxlength="60" placeholder="Enter your name">
@@ -168,10 +168,10 @@ button,input,textarea{font:inherit}button{cursor:pointer}
     <input id="authEmail" type="email" autocomplete="email" required placeholder="you@example.com">
     <label for="authPassword">Password</label>
     <div class="password-wrap">
-      <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters">
+      <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="Enter your password">
       <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password" aria-pressed="false">👁 Show</button>
     </div>
-    <p class="password-hint" id="passwordHint">Password must be at least 8 characters. For a stronger password, mix uppercase and lowercase letters, a number, and a symbol.<br><strong>Example:</strong> BlueSky#4821 <span>(Use your own password, not this example.)</span></p>
+    <p class="password-hint" id="passwordHint">Use any password you like — at least <strong>8 characters</strong>. Capital letters, numbers and symbols are optional.</p>
     <div class="auth-actions">
       <button type="submit" id="authSubmit">Sign in</button>
       <button type="button" class="alt" id="authToggle">Create account</button>
@@ -360,7 +360,7 @@ function showForgotPanel(){
 }
 function restoreLoginView(){
   authMode="login";
-  document.getElementById("authSubtitle").textContent="Sign in with your email and password.";
+  document.getElementById("authSubtitle").textContent="New to NEXUS AI? Choose Create account. Already registered? Choose Sign in.";
   document.getElementById("authEmail").style.display="";
   document.querySelector('label[for="authEmail"]').style.display="";
   document.getElementById("authPassword").style.display="";
@@ -425,7 +425,7 @@ document.getElementById("authToggle").addEventListener("click",()=>{
   authMode = authMode === "login" ? "signup" : "login";
   document.getElementById("authSubmit").textContent = authMode === "login" ? "Sign in" : "Create account";
   document.getElementById("authToggle").textContent = authMode === "login" ? "Create account" : "Back to sign in";
-  document.getElementById("authSubtitle").textContent = authMode === "login" ? "Sign in with your email and password." : "Create your NEXUS AI account. We will email you a verification code.";
+  document.getElementById("authSubtitle").textContent = authMode === "login" ? "Already have an account? Sign in. New here? Choose Create account." : "Create your NEXUS AI account. Enter your name, email and any password with at least 8 characters.";
   document.getElementById("authPassword").autocomplete = authMode === "login" ? "current-password" : "new-password";
   const nameField = document.getElementById("authNameField");
   const nameInput = document.getElementById("authName");
@@ -464,6 +464,7 @@ authForm.addEventListener("submit",async e=>{
       authError.style.color="#48e0b0";
       authError.textContent="Your password has been updated successfully. You can now sign in.";
     } else if(authMode==="signup"){
+      if(password.length<8) throw new Error("Password must be at least 8 characters.");
       const fullName=document.getElementById("authName").value.trim();
       if(!fullName) throw new Error("Please enter your name.");
       const {data,error}=await supabaseClient.auth.signUp({
