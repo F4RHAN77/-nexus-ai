@@ -307,7 +307,7 @@ function setAuthChoice(mode){
   document.querySelector('label[for="authEmail"]').style.display="";
   document.querySelector('label[for="authPassword"]').style.display="";
   document.getElementById("authSubmit").textContent=mode==="signup"?"Create Account":"Sign In";
-  document.getElementById("authToggle").textContent=mode==="signup"?"Back to Sign In":"Create Account";
+  document.getElementById("authToggle").style.display="none";
   document.getElementById("authSubtitle").textContent=mode==="signup"?"Create your free account to get started.":"Welcome back! Sign in to continue.";
   document.getElementById("authName").required=mode==="signup";
   document.getElementById("authPassword").autocomplete=mode==="signup"?"new-password":"current-password";
@@ -326,15 +326,13 @@ document.getElementById("backToAuthChoice").addEventListener("click",()=>{
   document.getElementById("authSubtitle").textContent="Choose an option to continue.";
   document.getElementById("authName").required=false;
 });
-// Start with only the two clear choices visible.
-authFieldIds.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display="none";});
-document.querySelector('label[for="authEmail"]').style.display="none";
-document.querySelector('label[for="authPassword"]').style.display="none";
-
-let authMode = "login";
+// authMode is initialized to "choice" above; keep the first screen uncluttered.
 const authForm = document.getElementById("authForm");
 authForm.noValidate = true; // Recovery screens hide fields; validate explicitly in the submit handler.
 const authError = document.getElementById("authError");
+authFieldIds.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display="none";});
+document.querySelector('label[for="authEmail"]').style.display="none";
+document.querySelector('label[for="authPassword"]').style.display="none";
 const passwordInput = document.getElementById("authPassword");
 const passwordToggle = document.getElementById("passwordToggle");
 passwordToggle.addEventListener("click",()=>{
