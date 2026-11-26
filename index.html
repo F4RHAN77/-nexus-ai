@@ -326,6 +326,11 @@ document.getElementById("backToAuthChoice").addEventListener("click",()=>{
   document.getElementById("authSubtitle").textContent="Choose an option to continue.";
   document.getElementById("authName").required=false;
 });
+// Start with only the two clear choices visible.
+authFieldIds.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display="none";});
+document.querySelector('label[for="authEmail"]').style.display="none";
+document.querySelector('label[for="authPassword"]').style.display="none";
+
 let authMode = "login";
 const authForm = document.getElementById("authForm");
 authForm.noValidate = true; // Recovery screens hide fields; validate explicitly in the submit handler.
