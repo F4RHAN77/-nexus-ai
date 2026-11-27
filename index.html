@@ -1074,32 +1074,84 @@ function parseArtifactSections(markdown) {
   if (current.body.length || current.visual || !sections.length) sections.push(current);
   return { title: documentTitle || "NEXUS AI Document", sections };
 }
-async function fetchArtifactImage(query) {
-  const search = String(query || "").replace(/[^a-z0-9 ,\x27-]/gi," ").replace(/\s+/g," ").trim().slice(0,160);
-  if (!search) return null;
-  try {
-    const api = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=" + encodeURIComponent(search) + "&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=1200&format=json&origin=*";
-    const response = await fetch(api);
-    if (!response.ok) return null;
-    const data = await response.json();
-    const pages = Object.values(data.query?.pages || {});
-    const page = pages.find(item => item.imageinfo?.[0] && /\.(jpg|jpeg|png)$/i.test(item.imageinfo[0].thumburl || item.imageinfo[0].url || ""));
-    if (!page) return null;
-    const info = page.imageinfo[0];
-    const imageResponse = await fetch(info.thumburl || info.url);
-    if (!imageResponse.ok) return null;
-    const blob = await imageResponse.blob();
-    const dataUrl = await new Promise((resolve,reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(blob); });
-    const meta = info.extmetadata || {};
-    const author = cleanArtifactText((meta.Artist?.value || "").replace(/<[^>]*>/g,"")).slice(0,100);
-    const license = cleanArtifactText(meta.LicenseShortName?.value || "Wikimedia Commons").slice(0,60);
-    return { data:dataUrl, mime:blob.type || "image/jpeg", author, license, url:info.descriptionurl || "" };
-  } catch(error) { console.warn("NEXUS AI image lookup failed:",error); return null; }
+async function artifactBlobToDataUrl(blob) {
+  return new Promise((resolve,reject) => { const reader=new FileReader(); reader.onload=()=>resolve(reader.result); reader.onerror=reject; reader.readAsDataURL(blob); });
 }
 
-async function loadArtifactImages(sections, enabled) {
-  if (!enabled) return [];
-  return Promise.all(sections.map(section => fetchArtifactImage([section.title,section.visual || ""].filter(Boolean).join(" "))));
+async function downloadArtifactImage(url) {
+  try { const response=await fetch(url,{mode:"cors"}); if(!response.ok) return null; const blob=await response.blob();
+    if(!/^image\/(jpeg|png)$/i.test(blob.type)) return null;
+    return {data:await artifactBlobToDataUrl(blob),mime:blob.type || "image/jpeg"};
+  } catch(error) { return null; }
+}
+
+async function searchOpenverseImage(query) {
+  const terms=String(query || "").replace(/[^a-z0-9 ,\x27-]/gi," ").replace(/\s+/g," ").trim().slice(0,140);
+  if(!terms) return null;
+  try {
+    const endpoint="https://api.openverse.org/v1/images/?q="+encodeURIComponent(terms)+"&page_size=10&extension=jpg%2Cpng&mature=false";
+    const response=await fetch(endpoint); if(!response.ok) return null;
+    const payload=await response.json(); const results=Array.isArray(payload.results)?payload.results:[];
+    const words=terms.toLowerCase().split(/\s+/).filter(word=>word.length>3);
+    const ranked=results.map(item=>{
+      const haystack=[item.title,item.tags?.map(tag=>tag.name).join(" "),item.creator].join(" ").toLowerCase();
+      const score=words.reduce((total,word)=>total+(haystack.includes(word)?1:0),0);
+      return {item,score};
+    }).sort((x,y)=>y.score-x.score);
+    const candidate=ranked.find(entry=>entry.score>=Math.min(2,Math.max(1,words.length)));
+    if(!candidate) return null;
+    const item=candidate.item;
+    const downloaded=await downloadArtifactImage(item.url || item.thumbnail);
+    if(!downloaded) return null;
+    return {...downloaded,author:cleanArtifactText(item.creator || "Unknown creator").slice(0,100),license:cleanArtifactText((item.license || "Creative Commons")+" "+(item.license_version || "")).slice(0,60),url:item.foreign_landing_url || item.detail_url || "",provider:"Openverse"};
+  } catch(error) { console.warn("Openverse image search failed:",error); return null; }
+}
+
+async function fetchArtifactImage(query) {
+  const search=String(query || "").replace(/[^a-z0-9 ,\x27-]/gi," ").replace(/\s+/g," ").trim().slice(0,160);
+  if(!search) return null;
+  try {
+    const api="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(search)+"&gsrnamespace=6&gsrlimit=8&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=1200&format=json&origin=*";
+    const response=await fetch(api);
+    if(response.ok) {
+      const data=await response.json(); const pages=Object.values(data.query?.pages || {});
+      for(const page of pages) {
+        const info=page.imageinfo?.[0]; if(!info) continue;
+        const downloaded=await downloadArtifactImage(info.thumburl || info.url); if(!downloaded) continue;
+        const meta=info.extmetadata || {};
+        return {...downloaded,author:cleanArtifactText((meta.Artist?.value || "").replace(/<[^>]*>/g,"")).slice(0,100),license:cleanArtifactText(meta.LicenseShortName?.value || "Wikimedia Commons").slice(0,60),url:info.descriptionurl || "",provider:"Wikimedia Commons"};
+      }
+    }
+  } catch(error) { console.warn("Wikimedia image search failed:",error); }
+  return await searchOpenverseImage(search);
+}
+
+function makeArtifactDiagram(section) {
+  const source=(section.title+" "+(section.visual || "")).toLowerCase();
+  let labels=["Cause","Impact","Solution"], icons=["●","↓","✓"], heading="KEY IDEA";
+  if(/forest|tree|deforest|jungle|wildlife|biodivers/.test(source)){labels=["Protect forests","Restore trees","Save wildlife"];icons=["♧","♣","⌁"];heading="FOREST CONSERVATION";}
+  else if(/pollut|plastic|waste|garbage|recycl/.test(source)){labels=["Reduce waste","Reuse items","Recycle safely"];icons=["↓","↻","♻"];heading="WASTE MANAGEMENT";}
+  else if(/solar|renewable|energy|electric|power/.test(source)){labels=["Sunlight","Clean power","Lower emissions"];icons=["☼","⚡","✓"];heading="CLEAN ENERGY";}
+  else if(/water|river|rain|ocean|drought/.test(source)){labels=["Save water","Keep it clean","Reuse wisely"];icons=["≈","滴","✓"];heading="WATER CONSERVATION";}
+  else if(/climate|warming|temperature|carbon/.test(source)){labels=["Reduce emissions","Use clean energy","Restore nature"];icons=["CO₂","☼","♧"];heading="CLIMATE ACTION";}
+  else if(/ecosystem|environment|earth|nature/.test(source)){labels=["Clean air","Safe water","Healthy soil"];icons=["AIR","H₂O","SOIL"];heading="HEALTHY ECOSYSTEM";}
+  const esc=value=>String(value).replace(/[&<>"]/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[char]));
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#101b38"/><stop offset="1" stop-color="#263d67"/></linearGradient><linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#67e8c0"/><stop offset="1" stop-color="#8b9cff"/></linearGradient></defs><rect width="1200" height="720" rx="38" fill="url(#bg)"/><text x="600" y="110" fill="#aebeff" font-family="Arial,sans-serif" font-size="28" font-weight="700" text-anchor="middle" letter-spacing="5">${esc(heading)}</text><text x="600" y="175" fill="#ffffff" font-family="Arial,sans-serif" font-size="40" font-weight="700" text-anchor="middle">${esc(cleanArtifactText(section.title).slice(0,48))}</text>${labels.map((label,index)=>{const x=105+index*370;return `<rect x="${x}" y="285" width="300" height="270" rx="28" fill="#18294b" stroke="#536b9c" stroke-width="3"/><circle cx="${x+150}" cy="390" r="62" fill="url(#accent)"/><text x="${x+150}" y="410" fill="#101b38" font-family="Arial,sans-serif" font-size="42" font-weight="700" text-anchor="middle">${esc(icons[index])}</text><text x="${x+150}" y="490" fill="#ffffff" font-family="Arial,sans-serif" font-size="25" font-weight="700" text-anchor="middle">${esc(label)}</text>`;}).join("")}<path d="M405 420h25m-8 -10 10 10 -10 10M775 420h25m-8 -10 10 10 -10 10" stroke="#aebeff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="600" y="650" fill="#9eaccb" font-family="Arial,sans-serif" font-size="20" text-anchor="middle">Original visual generated by NEXUS AI</text></svg>`;
+  return new Promise(resolve=>{
+    const img=new Image(); const blob=new Blob([svg],{type:"image/svg+xml"}); const objectUrl=URL.createObjectURL(blob);
+    img.onload=()=>{try{const canvas=document.createElement("canvas");canvas.width=1200;canvas.height=720;canvas.getContext("2d").drawImage(img,0,0);resolve({data:canvas.toDataURL("image/png"),mime:"image/png",author:"NEXUS AI",license:"Original generated diagram",url:"",provider:"NEXUS AI diagram"});}catch(error){resolve(null);}finally{URL.revokeObjectURL(objectUrl);}};
+    img.onerror=()=>{URL.revokeObjectURL(objectUrl);resolve(null);};img.src=objectUrl;
+  });
+}
+
+async function loadArtifactImages(sections,enabled) {
+  if(!enabled) return [];
+  return Promise.all(sections.map(async section=>{
+    const visualQuery=section.visual || section.title;
+    const queries=[visualQuery,section.title].filter(Boolean);
+    for(const query of queries){const found=await fetchArtifactImage(query);if(found)return found;}
+    return await makeArtifactDiagram(section);
+  }));
 }
 async function exportArtifactPDF(markdown, title, visuals) {
   if (!window.jspdf) { alert("PDF generator load nahi hua. Internet check karke page refresh karein."); return; }
@@ -1122,7 +1174,7 @@ async function exportArtifactPDF(markdown, title, visuals) {
       ensureSpace(64);
       try { const props=pdf.getImageProperties(image.data); const ratio=Math.min(textWidth/props.width,58/props.height); const width=props.width*ratio,height=props.height*ratio;
         pdf.addImage(image.data,image.mime.includes("png")?"PNG":"JPEG",margin,y,width,height); y += height+2;
-        pdf.setFont("helvetica","italic"); pdf.setFontSize(7); pdf.setTextColor(105,110,130); pdf.text(("Image: "+(image.author || "Wikimedia Commons")+" · "+image.license).slice(0,140),margin,y); y += 5;
+        pdf.setFont("helvetica","italic"); pdf.setFontSize(7); pdf.setTextColor(105,110,130); pdf.text(("Image: "+(image.author || image.provider || "NEXUS AI")+" · "+image.license).slice(0,140),margin,y); y += 5;
       } catch(error) { console.warn("PDF image insert failed:",error); }
     } else if (visuals && section.visual) {
       ensureSpace(20); pdf.setFillColor(239,242,255); pdf.roundedRect(margin,y,textWidth,15,3,3,"F");
