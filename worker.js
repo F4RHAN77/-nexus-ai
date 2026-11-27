@@ -1,20 +1,63 @@
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type"
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Max-Age": "86400",
+  "Vary": "Origin"
 };
 
 const MODEL = "@cf/google/gemma-4-26b-a4b-it";
+const MAX_BODY_BYTES = 2_700_000;
+
+async function readJsonLimited(request) {
+  const declaredLength = Number(request.headers.get("Content-Length") || 0);
+  if (declaredLength > MAX_BODY_BYTES) {
+    throw new Error("REQUEST_TOO_LARGE");
+  }
+
+  if (!request.body) {
+    throw new Error("INVALID_JSON");
+  }
+
+  const reader = request.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+
+      if (totalBytes > MAX_BODY_BYTES) {
+        await reader.cancel();
+        throw new Error("REQUEST_TOO_LARGE");
+      }
+
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    throw new Error("INVALID_JSON");
+  }
+}
 
 export default {
   async fetch(request, env) {
-
     if (request.method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: corsHeaders
-      });
+      return new Response(null, { status: 204, headers: corsHeaders });
     }
 
     if (request.method !== "POST") {
@@ -24,28 +67,51 @@ export default {
       );
     }
 
+    // Reject unexpected content types before spending AI or parsing resources.
+    if (!request.headers.get("Content-Type")?.toLowerCase().includes("application/json")) {
+      return Response.json(
+        { error: "Content-Type must be application/json" },
+        { status: 415, headers: corsHeaders }
+      );
+    }
+
+    // Fail closed if the configured Cloudflare rate limiter is missing.
+    if (!env.MY_RATE_LIMITER) {
+      return Response.json(
+        { error: "Service temporarily unavailable" },
+        { status: 503, headers: corsHeaders }
+      );
+    }
+
+    // Cloudflare supplies this header at its edge; do not trust client-provided X-Forwarded-For.
+    const ip = request.headers.get("CF-Connecting-IP");
+    if (!ip) {
+      return Response.json(
+        { error: "Request could not be verified" },
+        { status: 403, headers: corsHeaders }
+      );
+    }
+
     try {
-      // Rate limiting
-      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-
-      const { success } = await env.MY_RATE_LIMITER.limit({
-        key: ip
-      });
-
+      const { success } = await env.MY_RATE_LIMITER.limit({ key: ip });
       if (!success) {
         return Response.json(
           { error: "Too many requests. Please try again later." },
-          { status: 429, headers: corsHeaders }
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Retry-After": "60" }
+          }
         );
       }
 
-      // Check AI binding
       if (!env.AI) {
-        throw new Error("AI binding is not configured");
+        return Response.json(
+          { error: "AI service temporarily unavailable" },
+          { status: 503, headers: corsHeaders }
+        );
       }
 
-      // Read request
-      const body = await request.json();
+      const body = await readJsonLimited(request);
       const message = body.message;
 
       if (typeof message !== "string" || !message.trim()) {
@@ -62,12 +128,11 @@ export default {
         );
       }
 
-      // Conversation history support
       const history = Array.isArray(body.messages)
-  ? body.messages
-  : Array.isArray(body.history)
-    ? body.history
-    : [];
+        ? body.messages
+        : Array.isArray(body.history)
+          ? body.history
+          : [];
 
       const validHistory = history
         .filter(item =>
@@ -82,18 +147,13 @@ export default {
           content: item.content.slice(0, 6000)
         }));
 
-      // Avoid duplicating the latest user message
       const lastMessage = validHistory[validHistory.length - 1];
-
       if (
         !lastMessage ||
         lastMessage.role !== "user" ||
         lastMessage.content !== message
       ) {
-        validHistory.push({
-          role: "user",
-          content: message.trim()
-        });
+        validHistory.push({ role: "user", content: message.trim() });
       }
 
       const messages = [
@@ -109,15 +169,15 @@ export default {
         ...validHistory
       ];
 
-      // Optional image input for vision, OCR, handwriting and document-photo analysis.
-      // Only accept compressed JPEG data URLs from the signed-in frontend.
       const imageDataUrl = body.imageDataUrl;
       if (imageDataUrl !== undefined && imageDataUrl !== null) {
-        if (typeof imageDataUrl !== "string" ||
-            !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(imageDataUrl) ||
-            imageDataUrl.length > 2500000) {
+        if (
+          typeof imageDataUrl !== "string" ||
+          !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(imageDataUrl) ||
+          imageDataUrl.length > 2_500_000
+        ) {
           return Response.json(
-            { error: "Invalid image. Please upload a JPEG image smaller than the supported limit." },
+            { error: "Invalid image or image is too large." },
             { status: 400, headers: corsHeaders }
           );
         }
@@ -140,7 +200,6 @@ export default {
         };
       }
 
-      // Generate AI response. Gemma 4 accepts image_url content parts for vision input.
       const result = await env.AI.run(MODEL, {
         messages,
         max_tokens: 2048
@@ -151,21 +210,26 @@ export default {
         result.response ||
         "No response generated.";
 
-      return Response.json(
-        { reply },
-        { headers: corsHeaders }
-      );
-
+      return Response.json({ reply }, { headers: corsHeaders });
     } catch (error) {
+      if (error.message === "REQUEST_TOO_LARGE") {
+        return Response.json(
+          { error: "Request is too large." },
+          { status: 413, headers: corsHeaders }
+        );
+      }
+
+      if (error.message === "INVALID_JSON") {
+        return Response.json(
+          { error: "Invalid JSON request." },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      // Keep internal exception details out of public API responses.
       return Response.json(
-        {
-          error: "AI service error",
-          details: error.message
-        },
-        {
-          status: 500,
-          headers: corsHeaders
-        }
+        { error: "AI service temporarily unavailable. Please try again." },
+        { status: 503, headers: corsHeaders }
       );
     }
   }
