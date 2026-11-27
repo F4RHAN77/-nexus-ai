@@ -18,7 +18,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>if(window.pdfjsLib)window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 
 <style>
 
@@ -1103,33 +1103,89 @@ async function exportArtifactPDF(markdown, title, visuals) {
   pdf.save((String(title || parsed.title).replace(/[^a-z0-9-_]+/gi,"-").replace(/^-|-$/g,"") || "NEXUS-AI") + ".pdf");
 }
 
-async function exportArtifactPPT(markdown, title, visuals) {
-  const PptxGenJS = window.pptxgen || window.PptxGenJS || window.pptxgenjs;
-  if (!PptxGenJS) { alert("PPT generator load nahi hua. Page refresh karke try karein."); return; }
-  const pptx = new PptxGenJS();
-  pptx.layout = "LAYOUT_WIDE"; pptx.author = "NEXUS AI"; pptx.subject = "AI-generated presentation"; pptx.title = title;
-  const parsed = parseArtifactSections(markdown);
-  const cover = pptx.addSlide(); cover.background = {color:"0B1020"};
-  cover.addShape(pptx.ShapeType.roundRect,{x:0.65,y:0.8,w:12.0,h:5.8,rectRadius:0.2,line:{color:"34416B",transparency:100},fill:{color:"141C35"}});
-  cover.addText("NEXUS AI",{x:1.1,y:1.35,w:10.8,h:0.5,fontSize:16,bold:true,color:"9C8BFF",charSpacing:2});
-  cover.addText(title || parsed.title,{x:1.1,y:2.15,w:10.6,h:2.1,fontSize:30,bold:true,color:"FFFFFF",breakLine:false,fit:"shrink",valign:"mid"});
-  cover.addText("Prepared with NEXUS AI",{x:1.1,y:5.8,w:10,h:0.35,fontSize:11,color:"9AA8CA"});
-  for (const section of parsed.sections) {
-    const slide = pptx.addSlide(); slide.background = {color:"0B1020"};
-    slide.addText(section.title || "Key points",{x:0.65,y:0.45,w:11.9,h:0.65,fontSize:25,bold:true,color:"B8A7FF",fit:"shrink"});
-    slide.addShape(pptx.ShapeType.line,{x:0.68,y:1.22,w:11.9,h:0,line:{color:"3A4771",width:1.2}});
-    const body = section.body.filter(Boolean).join("\n").replace(/•\s*/g,"• ");
-    slide.addText(body || " ",{x:0.8,y:1.55,w:visuals?7.1:11.6,h:5.1,fontSize:17,color:"E8ECFA",breakLine:false,paraSpaceAfterPt:10,fit:"shrink",valign:"top",margin:0.08});
-    if (visuals) {
-      slide.addShape(pptx.ShapeType.roundRect,{x:8.35,y:1.8,w:4.15,h:4.35,rectRadius:0.18,line:{color:"46568B",width:1},fill:{color:"172342"}});
-      slide.addShape(pptx.ShapeType.ellipse,{x:9.75,y:2.45,w:1.35,h:1.35,line:{color:"8B7BFF",transparency:100},fill:{color:"6655CC"}});
-      slide.addText("✦",{x:10.03,y:2.73,w:0.8,h:0.65,fontSize:28,bold:true,color:"FFFFFF",align:"center",valign:"mid"});
-      slide.addText("VISUAL SUMMARY",{x:8.75,y:4.15,w:3.35,h:0.35,fontSize:11,bold:true,color:"91A9FF",align:"center",charSpacing:1});
-      slide.addText(section.visual || section.title || "Main concept",{x:8.75,y:4.65,w:3.35,h:1.0,fontSize:16,bold:true,color:"FFFFFF",align:"center",valign:"mid",fit:"shrink"});
-    }
-    slide.addText("NEXUS AI",{x:0.7,y:7.05,w:4,h:0.2,fontSize:8,color:"7280A5"});
+function getPptxGenConstructor() {
+  const candidates = [window.PptxGenJS, window.pptxgen, window.pptxgenjs];
+  for (const candidate of candidates) {
+    if (typeof candidate === "function") return candidate;
+    if (candidate && typeof candidate.default === "function") return candidate.default;
+    if (candidate && typeof candidate.PptxGenJS === "function") return candidate.PptxGenJS;
   }
-  await pptx.writeFile({fileName:(String(title || parsed.title).replace(/[^a-z0-9-_]+/gi,"-").replace(/^-|-$/g,"") || "NEXUS-AI")+".pptx"});
+  return null;
+}
+
+let pptxLibraryPromise = null;
+async function ensurePptxGenJS() {
+  const existing = getPptxGenConstructor();
+  if (existing) return existing;
+  if (!pptxLibraryPromise) {
+    pptxLibraryPromise = (async () => {
+      const sources = [
+        "https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.bundle.js",
+        "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"
+      ];
+      let lastError = null;
+      for (const src of sources) {
+        try {
+          await new Promise((resolve,reject) => {
+            const script = document.createElement("script");
+            script.src = src;
+            script.async = true;
+            script.onload = resolve;
+            script.onerror = () => reject(new Error("Could not load "+src));
+            document.head.appendChild(script);
+          });
+          const Constructor = getPptxGenConstructor();
+          if (Constructor) return Constructor;
+          throw new Error("PptxGenJS loaded but its browser constructor was not found.");
+        } catch(error) { lastError = error; }
+      }
+      throw lastError || new Error("PptxGenJS could not be loaded.");
+    })();
+  }
+  try { return await pptxLibraryPromise; }
+  catch(error) { pptxLibraryPromise = null; throw error; }
+}
+
+async function exportArtifactPPT(markdown, title, visuals) {
+  let PptxGenJS;
+  try {
+    PptxGenJS = await ensurePptxGenJS();
+  } catch(error) {
+    console.error("NEXUS AI PPT library error:",error);
+    alert("PPT generator load nahi ho paya. Internet connection check karke dobara Download PPT dabayein.");
+    return;
+  }
+
+  try {
+    const pptx = new PptxGenJS();
+    pptx.layout = "LAYOUT_WIDE"; pptx.author = "NEXUS AI"; pptx.subject = "AI-generated presentation"; pptx.title = title;
+    const parsed = parseArtifactSections(markdown);
+    const cover = pptx.addSlide(); cover.background = {color:"0B1020"};
+    cover.addShape(pptx.ShapeType.roundRect,{x:0.65,y:0.8,w:12.0,h:5.8,rectRadius:0.2,line:{color:"34416B",transparency:100},fill:{color:"141C35"}});
+    cover.addText("NEXUS AI",{x:1.1,y:1.35,w:10.8,h:0.5,fontSize:16,bold:true,color:"9C8BFF",charSpacing:2});
+    cover.addText(title || parsed.title,{x:1.1,y:2.15,w:10.6,h:2.1,fontSize:30,bold:true,color:"FFFFFF",breakLine:false,fit:"shrink",valign:"mid"});
+    cover.addText("Prepared with NEXUS AI",{x:1.1,y:5.8,w:10,h:0.35,fontSize:11,color:"9AA8CA"});
+    for (const section of parsed.sections) {
+      const slide = pptx.addSlide(); slide.background = {color:"0B1020"};
+      slide.addText(section.title || "Key points",{x:0.65,y:0.45,w:11.9,h:0.65,fontSize:25,bold:true,color:"B8A7FF",fit:"shrink"});
+      slide.addShape(pptx.ShapeType.line,{x:0.68,y:1.22,w:11.9,h:0,line:{color:"3A4771",width:1.2}});
+      const body = section.body.filter(Boolean).join("\n").replace(/•\s*/g,"• ");
+      slide.addText(body || " ",{x:0.8,y:1.55,w:visuals?7.1:11.6,h:5.1,fontSize:17,color:"E8ECFA",breakLine:false,paraSpaceAfterPt:10,fit:"shrink",valign:"top",margin:0.08});
+      if (visuals) {
+        slide.addShape(pptx.ShapeType.roundRect,{x:8.35,y:1.8,w:4.15,h:4.35,rectRadius:0.18,line:{color:"46568B",width:1},fill:{color:"172342"}});
+        slide.addShape(pptx.ShapeType.ellipse,{x:9.75,y:2.45,w:1.35,h:1.35,line:{color:"8B7BFF",transparency:100},fill:{color:"6655CC"}});
+        slide.addText("✦",{x:10.03,y:2.73,w:0.8,h:0.65,fontSize:28,bold:true,color:"FFFFFF",align:"center",valign:"mid"});
+        slide.addText("VISUAL SUMMARY",{x:8.75,y:4.15,w:3.35,h:0.35,fontSize:11,bold:true,color:"91A9FF",align:"center",charSpacing:1});
+        slide.addText(section.visual || section.title || "Main concept",{x:8.75,y:4.65,w:3.35,h:1.0,fontSize:16,bold:true,color:"FFFFFF",align:"center",valign:"mid",fit:"shrink"});
+      }
+      slide.addText("NEXUS AI",{x:0.7,y:7.05,w:4,h:0.2,fontSize:8,color:"7280A5"});
+    }
+    const safeName = (String(title || parsed.title).replace(/[^a-z0-9-_]+/gi,"-").replace(/^-|-$/g,"") || "NEXUS-AI")+".pptx";
+    await pptx.writeFile({fileName:safeName});
+  } catch(error) {
+    console.error("NEXUS AI PPT export error:",error);
+    alert("PPT banate waqt error aaya. Dobara try karein. Details console mein available hain.");
+  }
 }
 
 async function sendMessage() {
