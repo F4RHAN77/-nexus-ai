@@ -1241,11 +1241,11 @@ async function sendMessage() {
   if (pendingArtifactRequest) {
     artifactRequest = pendingArtifactRequest;
     pendingArtifactRequest = null;
-    const wantsVisuals = /\b(yes|haan|ha|zaroor|sure|add|visual|image|images)\b/i.test(value);
+    const wantsVisuals = !/\b(no|nahi|nahin|mat|without|text[- ]only|dont|don't)\b/i.test(value) && /\b(yes|haan|ha|zaroor|sure|add|visual|image|images)\b/i.test(value);
     messageText =
       "Create a complete, polished, ready-to-export "+(artifactRequest.format==="pdf"?"PDF document":"PowerPoint presentation")+
       " based on this user request: "+artifactRequest.request+"\n\nVisual preference: "+(wantsVisuals?"Include helpful visual summaries, simple diagrams and image-style visual panels where they genuinely improve understanding.":"Text-only; do not add images or decorative visuals.")+
-      "\n\nUse the same language as the user. Use the conversation context if the user says a range such as 'from this to that'. Do not invent facts. Organize the output with a clear title, logical sections and concise explanations. For a presentation, create 5-7 slides with each slide heading formatted as '## Slide N: Title' and 3-5 concise bullet points. For a PDF, create a well-structured document with headings and useful detail. If visuals are enabled, add a short line beginning 'VISUAL:' under sections/slides describing the most useful diagram or visual summary. Return only the finished document content, not a preamble or a question.";
+      "\n\nUse the same language as the user. Use the conversation context if the user says a range such as 'from this to that'. Do not invent facts. Organize the output with a clear title, logical sections and concise explanations. For a presentation, create 5-7 slides with each slide heading formatted as '## Slide N: Title' and 3-5 concise bullet points. For a PDF, create a well-structured document with headings and useful detail. If visuals are enabled, add a short line beginning 'VISUAL:' under each section/slide with concise English search keywords for a real relevant photograph or illustration. Do not write generic placeholder descriptions. Return only the finished document content, not a preamble or a question.";
   }
 
   isSending = true;
@@ -1274,7 +1274,7 @@ async function sendMessage() {
     if (typeof reply !== "string" || !reply.trim()) throw new Error("AI ne empty response diya. Worker response check karo.");
     chat.messages.push({
       role:"assistant",content:reply.trim(),
-      ...(artifactRequest ? {artifactType:artifactRequest.format,artifactTitle:artifactRequest.request.slice(0,90),artifactVisuals:/\b(yes|haan|ha|zaroor|sure|add|visual|image|images)\b/i.test(value)} : {})
+      ...(artifactRequest ? {artifactType:artifactRequest.format,artifactTitle:artifactRequest.request.slice(0,90),artifactVisuals:!(/\b(no|nahi|nahin|mat|without|text[- ]only|dont|don't)\b/i.test(value)) && /\b(yes|haan|ha|zaroor|sure|add|visual|image|images)\b/i.test(value)} : {})
     });
   } catch(error) {
     console.error("NEXUS AI error:",error);
