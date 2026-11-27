@@ -1074,6 +1074,33 @@ function parseArtifactSections(markdown) {
   if (current.body.length || current.visual || !sections.length) sections.push(current);
   return { title: documentTitle || "NEXUS AI Document", sections };
 }
+async function fetchArtifactImage(query) {
+  const search = String(query || "").replace(/[^a-z0-9 ,\x27-]/gi," ").replace(/\s+/g," ").trim().slice(0,160);
+  if (!search) return null;
+  try {
+    const api = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=" + encodeURIComponent(search) + "&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=1200&format=json&origin=*";
+    const response = await fetch(api);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const pages = Object.values(data.query?.pages || {});
+    const page = pages.find(item => item.imageinfo?.[0] && /\.(jpg|jpeg|png|webp)$/i.test(item.imageinfo[0].thumburl || item.imageinfo[0].url || ""));
+    if (!page) return null;
+    const info = page.imageinfo[0];
+    const imageResponse = await fetch(info.thumburl || info.url);
+    if (!imageResponse.ok) return null;
+    const blob = await imageResponse.blob();
+    const dataUrl = await new Promise((resolve,reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(blob); });
+    const meta = info.extmetadata || {};
+    const author = cleanArtifactText((meta.Artist?.value || "").replace(/<[^>]*>/g,"")).slice(0,100);
+    const license = cleanArtifactText(meta.LicenseShortName?.value || "Wikimedia Commons").slice(0,60);
+    return { data:dataUrl, mime:blob.type || "image/jpeg", author, license, url:info.descriptionurl || "" };
+  } catch(error) { console.warn("NEXUS AI image lookup failed:",error); return null; }
+}
+
+async function loadArtifactImages(sections, enabled) {
+  if (!enabled) return [];
+  return Promise.all(sections.map(section => fetchArtifactImage([section.title,section.visual || ""].filter(Boolean).join(" "))));
+}
 async function exportArtifactPDF(markdown, title, visuals) {
   if (!window.jspdf) { alert("PDF generator load nahi hua. Internet check karke page refresh karein."); return; }
   const { jsPDF } = window.jspdf;
