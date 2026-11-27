@@ -729,6 +729,7 @@ function getCurrentChat() {
 }
 
 async function newChat() {
+  pendingArtifactRequest = null;
   await createChat();
   input.value = "";
   input.focus();
@@ -736,6 +737,7 @@ async function newChat() {
 }
 
 function openChat(id) {
+  pendingArtifactRequest = null;
   currentChatId = id;
   renderChatList();
   renderMessages();
