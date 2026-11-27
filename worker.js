@@ -1,6 +1,6 @@
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Max-Age": "86400",
   "Vary": "Origin"
@@ -54,10 +54,86 @@ async function readJsonLimited(request) {
   }
 }
 
+async function fetchImageBytes(url) {
+  try {
+    const parsed=new URL(url);
+    const host=parsed.hostname.toLowerCase();
+    if (!(host==="upload.wikimedia.org" || host==="images.openverse.org")) return null;
+    const response=await fetch(parsed.toString(),{headers:{"User-Agent":"NEXUSAI/1.0 (educational presentation image search)"}});
+    if(!response.ok) return null;
+    const type=(response.headers.get("Content-Type") || "").split(";")[0].toLowerCase();
+    if(!["image/jpeg","image/png"].includes(type)) return null;
+    const length=Number(response.headers.get("Content-Length") || 0);
+    if(length>8_000_000) return null;
+    const bytes=await response.arrayBuffer();
+    if(bytes.byteLength>8_000_000) return null;
+    return {bytes,type};
+  } catch { return null; }
+}
+
+async function findRealPhoto(query) {
+  const terms=String(query || "").replace(/[^a-z0-9 -]/gi," ").replace(/\s+/g," ").trim().slice(0,120);
+  if(!terms) return null;
+  try {
+    const endpoint="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(terms)+"&gsrnamespace=6&gsrlimit=8&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=1400&format=json&origin=*";
+    const response=await fetch(endpoint,{headers:{"User-Agent":"NEXUSAI/1.0 (educational presentation image search)"}});
+    if(response.ok) {
+      const data=await response.json();
+      const pages=Object.values(data.query?.pages || {});
+      for(const page of pages) {
+        const info=page.imageinfo?.[0]; if(!info) continue;
+        const found=await fetchImageBytes(info.thumburl || info.url);
+        if(!found) continue;
+        const meta=info.extmetadata || {};
+        return {...found,author:String(meta.Artist?.value || "Wikimedia contributor").replace(/<[^>]*>/g,"").slice(0,180),license:String(meta.LicenseShortName?.value || "Wikimedia Commons license").replace(/<[^>]*>/g,"").slice(0,80),source:info.descriptionurl || "",provider:"Wikimedia Commons"};
+      }
+    }
+  } catch {}
+  try {
+    const endpoint="https://api.openverse.org/v1/images/?q="+encodeURIComponent(terms)+"&page_size=12&extension=jpg%2Cpng&mature=false";
+    const response=await fetch(endpoint);
+    if(response.ok) {
+      const data=await response.json();
+      const results=Array.isArray(data.results)?data.results:[];
+      for(const item of results) {
+        const found=await fetchImageBytes(item.thumbnail || item.url);
+        if(!found) continue;
+        return {...found,author:String(item.creator || "Unknown creator").slice(0,180),license:String(item.license || "Creative Commons").slice(0,80),source:item.foreign_landing_url || item.detail_url || "",provider:"Openverse"};
+      }
+    }
+  } catch {}
+  return null;
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
+    const requestUrl = new URL(request.url);
+    if (request.method === "GET" && requestUrl.pathname === "/image-search") {
+      const ip = request.headers.get("CF-Connecting-IP");
+      const query = requestUrl.searchParams.get("q") || "";
+      if (!ip || !query.trim() || query.length > 120) {
+        return new Response("Invalid image search request", { status: 400, headers: corsHeaders });
+      }
+      const image = await findRealPhoto(query);
+      if (!image) {
+        return new Response("No suitable real photo found", { status: 404, headers: corsHeaders });
+      }
+      return new Response(image.bytes, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": image.type,
+          "Cache-Control": "public, max-age=86400",
+          "X-Image-Author": image.author,
+          "X-Image-License": image.license,
+          "X-Image-Source": image.source,
+          "X-Image-Provider": image.provider
+        }
+      });
     }
 
     if (request.method !== "POST") {
