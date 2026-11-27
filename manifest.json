@@ -14,10 +14,11 @@
   "theme_color": "#080a12",
   "icons": [
     {
-      "src": "./icons/nexus-icon.svg",
+      "src": "./icons/nexus-icon.svg?v=2",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "id": "./"
 }
