@@ -972,8 +972,8 @@ function addMessageToDOM(msg) {
       download.style.marginLeft = "7px";
       download.textContent = msg.artifactType === "pdf" ? "⬇ Download PDF" : "⬇ Download PPT";
       download.onclick = () => msg.artifactType === "pdf"
-        ? exportArtifactPDF(msg.content || "", msg.artifactTitle || "NEXUS AI Document", !!msg.artifactVisuals)
-        : exportArtifactPPT(msg.content || "", msg.artifactTitle || "NEXUS AI Presentation", !!msg.artifactVisuals);
+        ? exportArtifactPDF(msg.content || "", parseArtifactSections(msg.content || "").title || "NEXUS AI Document", !!msg.artifactVisuals)
+        : exportArtifactPPT(msg.content || "", parseArtifactSections(msg.content || "").title || "NEXUS AI Presentation", !!msg.artifactVisuals);
       tools.appendChild(download);
     }
     content.appendChild(tools);
@@ -1117,7 +1117,7 @@ async function exportArtifactPPT(markdown, title, visuals) {
     slide.addText(section.title || "Key points",{x:0.65,y:0.45,w:11.9,h:0.65,fontSize:25,bold:true,color:"B8A7FF",fit:"shrink"});
     slide.addShape(pptx.ShapeType.line,{x:0.68,y:1.22,w:11.9,h:0,line:{color:"3A4771",width:1.2}});
     const body = section.body.filter(Boolean).join("\n").replace(/•\s*/g,"• ");
-    slide.addText(body || " ",{x:0.8,y:1.55,w:visuals?7.1:11.6,h:5.1,fontSize:17,color:"E8ECFA",breakLine:false,bullet:{indent:16},paraSpaceAfterPt:10,fit:"shrink",valign:"top",margin:0.08});
+    slide.addText(body || " ",{x:0.8,y:1.55,w:visuals?7.1:11.6,h:5.1,fontSize:17,color:"E8ECFA",breakLine:false,paraSpaceAfterPt:10,fit:"shrink",valign:"top",margin:0.08});
     if (visuals) {
       slide.addShape(pptx.ShapeType.roundRect,{x:8.35,y:1.8,w:4.15,h:4.35,rectRadius:0.18,line:{color:"46568B",width:1},fill:{color:"172342"}});
       slide.addShape(pptx.ShapeType.ellipse,{x:9.75,y:2.45,w:1.35,h:1.35,line:{color:"8B7BFF",transparency:100},fill:{color:"6655CC"}});
@@ -1166,7 +1166,7 @@ async function sendMessage() {
     messageText =
       "Create a complete, polished, ready-to-export "+(artifactRequest.format==="pdf"?"PDF document":"PowerPoint presentation")+
       " based on this user request: "+artifactRequest.request+"\n\nVisual preference: "+(wantsVisuals?"Include helpful visual summaries, simple diagrams and image-style visual panels where they genuinely improve understanding.":"Text-only; do not add images or decorative visuals.")+
-      "\n\nUse the conversation context if the user says a range such as 'from this to that'. Do not invent facts. Organize the output with a clear title, logical sections and concise explanations. For a presentation, create 6-10 slides with each slide heading formatted as '## Slide N: Title' and 3-5 concise bullet points. For a PDF, create a well-structured document with headings and useful detail. If visuals are enabled, add a short line beginning 'VISUAL:' under sections/slides describing the most useful diagram or visual summary. Return only the finished document content, not a preamble or a question.";
+      "\n\nUse the same language as the user. Use the conversation context if the user says a range such as 'from this to that'. Do not invent facts. Organize the output with a clear title, logical sections and concise explanations. For a presentation, create 5-7 slides with each slide heading formatted as '## Slide N: Title' and 3-5 concise bullet points. For a PDF, create a well-structured document with headings and useful detail. If visuals are enabled, add a short line beginning 'VISUAL:' under sections/slides describing the most useful diagram or visual summary. Return only the finished document content, not a preamble or a question.";
   }
 
   isSending = true;
