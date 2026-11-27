@@ -1036,6 +1036,19 @@ function saveAndRenderChat(chat) {
   renderMessages();
 }
 
+function cleanArtifactText(value) {
+  return String(value || "")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,"$1")
+    .replace(/\*\*(.*?)\*\*/g,"$1")
+    .replace(/__(.*?)__/g,"$1")
+    .replace(/~~(.*?)~~/g,"$1")
+    .replace(/\*([^*]+)\*/g,"$1")
+    .replace(/`([^`]+)`/g,"$1")
+    .replace(/\\([\\`*_{}\[\]()#+.!|>~-])/g,"$1")
+    .replace(/\s{2,}/g," ")
+    .trim();
+}
+
 function parseArtifactSections(markdown) {
   const lines = String(markdown || "").replace(/\r/g,"").split("\n");
   const sections = [];
@@ -1043,22 +1056,24 @@ function parseArtifactSections(markdown) {
   let documentTitle = "";
   for (const raw of lines) {
     const line = raw.trim();
-    if (!line) { current.body.push(""); continue; }
-    const heading = line.match(/^#{1,2}\s+(.+)$/);
+    if (!line || /^[-*_]{3,}$/.test(line)) continue;
+    const heading = line.match(/^#{1,3}\s+(.+)$/);
     if (heading) {
-      if (!documentTitle) documentTitle = heading[1].replace(/^Slide\s+\d+\s*[:—-]\s*/i,"").trim();
-      if (current.body.length || current.title !== "Overview") sections.push(current);
-      current = { title: heading[1].replace(/^Slide\s+\d+\s*[:—-]\s*/i,"").trim(), body: [] };
+      const headingText = cleanArtifactText(heading[1].replace(/^Slide\s+\d+\s*[:—-]\s*/i,""));
+      if (!documentTitle) documentTitle = headingText;
+      if (current.body.length || current.visual || current.title !== "Overview") sections.push(current);
+      current = { title: headingText, body: [] };
     } else if (/^VISUAL\s*:/i.test(line)) {
-      current.visual = line.replace(/^VISUAL\s*:/i,"").trim();
+      current.visual = cleanArtifactText(line.replace(/^VISUAL\s*:/i,""));
     } else {
-      current.body.push(line.replace(/^[-*+]\s+/,"• ").replace(/^\d+[.)]\s+/,"• "));
+      const isBullet = /^[-*+]\s+/.test(line) || /^\d+[.)]\s+/.test(line);
+      const content = cleanArtifactText(line.replace(/^[-*+]\s+/,"").replace(/^\d+[.)]\s+/,""));
+      if (content) current.body.push((isBullet ? "• " : "") + content);
     }
   }
   if (current.body.length || current.visual || !sections.length) sections.push(current);
   return { title: documentTitle || "NEXUS AI Document", sections };
 }
-
 async function exportArtifactPDF(markdown, title, visuals) {
   if (!window.jspdf) { alert("PDF generator load nahi hua. Internet check karke page refresh karein."); return; }
   const { jsPDF } = window.jspdf;
