@@ -1083,7 +1083,7 @@ async function fetchArtifactImage(query) {
     if (!response.ok) return null;
     const data = await response.json();
     const pages = Object.values(data.query?.pages || {});
-    const page = pages.find(item => item.imageinfo?.[0] && /\.(jpg|jpeg|png|webp)$/i.test(item.imageinfo[0].thumburl || item.imageinfo[0].url || ""));
+    const page = pages.find(item => item.imageinfo?.[0] && /\.(jpg|jpeg|png)$/i.test(item.imageinfo[0].thumburl || item.imageinfo[0].url || ""));
     if (!page) return null;
     const info = page.imageinfo[0];
     const imageResponse = await fetch(info.thumburl || info.url);
