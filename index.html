@@ -1169,7 +1169,7 @@ async function exportArtifactPPT(markdown, title, visuals) {
       const slide = pptx.addSlide(); slide.background = {color:"0B1020"};
       slide.addText(section.title || "Key points",{x:0.65,y:0.45,w:11.9,h:0.65,fontSize:25,bold:true,color:"B8A7FF",fit:"shrink"});
       slide.addShape(pptx.ShapeType.line,{x:0.68,y:1.22,w:11.9,h:0,line:{color:"3A4771",width:1.2}});
-      const body = section.body.filter(Boolean).join("\\n").replace(/•\\s*/g,"• ");
+      const body = section.body.filter(Boolean).join("\n").replace(/•\s*/g,"• ");
       slide.addText(body || " ",{x:0.8,y:1.55,w:visuals?7.1:11.6,h:5.1,fontSize:17,color:"E8ECFA",breakLine:false,paraSpaceAfterPt:10,fit:"shrink",valign:"top",margin:0.08});
       if (visuals) {
         slide.addShape(pptx.ShapeType.roundRect,{x:8.35,y:1.8,w:4.15,h:4.35,rectRadius:0.18,line:{color:"46568B",width:1},fill:{color:"172342"}});
