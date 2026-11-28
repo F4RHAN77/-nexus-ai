@@ -1,11 +1,35 @@
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Expose-Headers": "X-Image-Author, X-Image-License, X-Image-Source, X-Image-Provider",
-  "Access-Control-Max-Age": "86400",
-  "Vary": "Origin"
-};
+const ALLOWED_ORIGIN = "https://f4rhan77.github.io";
+const SUPABASE_URL = "https://hrtbmmahyxrwppynbrvr.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_v3hYBvWWXkmBltBt_JcWlg_Yjn61UY8";
+
+function corsHeadersFor(origin) {
+  return {
+    "Access-Control-Allow-Origin": origin === ALLOWED_ORIGIN ? ALLOWED_ORIGIN : "null",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Expose-Headers": "X-Image-Author, X-Image-License, X-Image-Source, X-Image-Provider",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin"
+  };
+}
+
+async function authenticateRequest(request) {
+  const authorization = request.headers.get("Authorization") || "";
+  if (!authorization.startsWith("Bearer ")) return null;
+  try {
+    const response = await fetch(SUPABASE_URL + "/auth/v1/user", {
+      headers: {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": authorization
+      }
+    });
+    if (!response.ok) return null;
+    const user = await response.json();
+    return user && typeof user.id === "string" ? user : null;
+  } catch {
+    return null;
+  }
+}
 
 const MODEL = "@cf/google/gemma-4-26b-a4b-it";
 const MAX_BODY_BYTES = 2_700_000;
@@ -108,6 +132,11 @@ async function findRealPhoto(query) {
 
 export default {
   async fetch(request, env) {
+    const origin = request.headers.get("Origin") || "";
+    const corsHeaders = corsHeadersFor(origin);
+    if (origin && origin !== ALLOWED_ORIGIN) {
+      return new Response("Origin not allowed", { status: 403, headers: corsHeaders });
+    }
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
@@ -119,6 +148,11 @@ export default {
       if (!ip || !query.trim() || query.length > 120) {
         return new Response("Invalid image search request", { status: 400, headers: corsHeaders });
       }
+      const user = await authenticateRequest(request);
+      if (!user) return new Response("Authentication required", { status: 401, headers: corsHeaders });
+      if (!env.MY_RATE_LIMITER) return new Response("Service temporarily unavailable", { status: 503, headers: corsHeaders });
+      const rate = await env.MY_RATE_LIMITER.limit({ key: "image:" + ip });
+      if (!rate.success) return new Response("Too many image requests. Try again later.", { status: 429, headers: { ...corsHeaders, "Retry-After": "60" } });
       const image = await findRealPhoto(query);
       if (!image) {
         return new Response("No suitable real photo found", { status: 404, headers: corsHeaders });
@@ -142,6 +176,11 @@ export default {
         { error: "Method not allowed" },
         { status: 405, headers: corsHeaders }
       );
+    }
+
+    const user = await authenticateRequest(request);
+    if (!user) {
+      return Response.json({ error: "Please sign in to use NEXUS AI." }, { status: 401, headers: corsHeaders });
     }
 
     // Reject unexpected content types before spending AI or parsing resources.
