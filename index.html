@@ -365,7 +365,19 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 
 const SUPABASE_URL = "https://hrtbmmahyxrwppynbrvr.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_v3hYBvWWXkmBltBt_JcWlg_Yjn61UY8";
-const supabaseClient = window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+let _nexusSupabaseClient = null;
+function getNexusSupabaseClient(){
+  if(!_nexusSupabaseClient){
+    if(!window.supabase || typeof window.supabase.createClient !== "function"){
+      throw new Error("NEXUS AI authentication library did not load. Check your internet connection and reload the app.");
+    }
+    _nexusSupabaseClient = window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+  }
+  return _nexusSupabaseClient;
+}
+// Lazy proxy: the login UI and Show Password handlers can initialize even
+// when the Supabase CDN is temporarily unavailable.
+const supabaseClient = { get auth(){ return getNexusSupabaseClient().auth; } };
 let authMode = "choice";
 const authChoice = document.getElementById("authChoice");
 const authFieldIds = ["authNameField","authEmail","authPassword","passwordToggle","passwordHint","authSubmit","authToggle","forgotPasswordBtn"];
