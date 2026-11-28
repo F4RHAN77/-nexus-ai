@@ -266,7 +266,7 @@ button,input,textarea{font:inherit}button{cursor:pointer}
       <div id="forgotOtpEntry" style="display:none">
         <label for="recoveryOtp">Enter the 6-digit code from your email</label>
         <input id="recoveryOtp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Enter email OTP">
-        <div class="auth-actions"><button type="button" id="verifyRecoveryOtpBtn">Verify OTP</button></div>
+        <div class="auth-actions"><button type="button" id="verifyRecoveryOtpBtn">Verify OTP</button><button type="button" class="alt" id="resendRecoveryOtpBtn">Resend OTP</button></div>
       </div>
       <p style="font-size:12px;color:#929bb7" id="forgotHelp">Enter your email above, then choose OTP or reset link.</p>
       <button type="button" id="backToLoginBtn" style="display:block;margin:14px auto 0;background:none;border:0;color:#a99cff;font-size:12px;cursor:pointer">← Back to sign in</button>
@@ -511,6 +511,21 @@ async function sendRecoveryEmail(method){
 document.getElementById("forgotOtpChoice").addEventListener("click",()=>sendRecoveryEmail("otp"));
 document.getElementById("forgotLinkChoice").addEventListener("click",()=>sendRecoveryEmail("link"));
 document.getElementById("backToLoginBtn").addEventListener("click",restoreLoginView);
+document.getElementById("resendRecoveryOtpBtn").addEventListener("click",async()=>{
+  const email=document.getElementById("authEmail").value.trim();
+  const button=document.getElementById("resendRecoveryOtpBtn");
+  if(!email){authError.style.color="#ff9b9b";authError.textContent="Enter your email address first.";return;}
+  button.disabled=true;
+  try{
+    const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+    if(error) throw error;
+    authError.style.color="#48e0b0";
+    authError.textContent="If the account exists, a new recovery email has been requested. Check your inbox and spam folder.";
+  }catch(error){
+    authError.style.color="#ff9b9b";
+    authError.textContent=error.message||"Could not resend recovery email.";
+  }finally{button.disabled=false;}
+});
 document.getElementById("verifyRecoveryOtpBtn").addEventListener("click",async()=>{
   const email=document.getElementById("authEmail").value.trim();
   const token=document.getElementById("recoveryOtp").value.trim();
