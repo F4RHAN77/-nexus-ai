@@ -238,10 +238,10 @@ button,input,textarea{font:inherit}button{cursor:pointer}
     <input id="authEmail" type="email" autocomplete="email" required placeholder="you@example.com">
     <label for="authPassword">Password</label>
     <div class="password-wrap">
-      <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="Enter your password">
+      <input id="authPassword" type="password" autocomplete="current-password" minlength="10" required placeholder="Enter your password">
       <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password" aria-pressed="false">👁 Show</button>
     </div>
-    <p class="password-hint" id="passwordHint">Use at least <strong>8 characters</strong>, including one lowercase letter, one uppercase letter, one number, and one symbol.</p>
+    <p class="password-hint" id="passwordHint">Use at least <strong>10 characters</strong>, including one lowercase letter, one uppercase letter, one number, and one symbol.</p>
     <div class="auth-actions">
       <button type="submit" id="authSubmit">Sign in</button>
       <button type="button" class="alt" id="authToggle">Create account</button>
@@ -533,7 +533,7 @@ document.getElementById("authToggle").addEventListener("click",()=>{
   authMode = authMode === "login" ? "signup" : "login";
   document.getElementById("authSubmit").textContent = authMode === "login" ? "Sign in" : "Create account";
   document.getElementById("authToggle").textContent = authMode === "login" ? "Create account" : "Back to sign in";
-  document.getElementById("authSubtitle").textContent = authMode === "login" ? "Already have an account? Sign in. New here? Choose Create account." : "Create your NEXUS AI account. Enter your name, email and any password with at least 8 characters.";
+  document.getElementById("authSubtitle").textContent = authMode === "login" ? "Already have an account? Sign in. New here? Choose Create account." : "Create your NEXUS AI account. Enter your name, email and any password with at least 10 characters.";
   document.getElementById("authPassword").autocomplete = authMode === "login" ? "current-password" : "new-password";
   const nameField = document.getElementById("authNameField");
   const nameInput = document.getElementById("authName");
@@ -555,7 +555,7 @@ authForm.addEventListener("submit",async e=>{
   const button=document.getElementById("authSubmit"); button.disabled=true;
   try {
     if(authMode==="recovery"){
-      if(password.length<8) throw new Error("New password must be at least 8 characters.");
+      if(password.length<10) throw new Error("New password must be at least 10 characters.");
       const {error}=await supabaseClient.auth.updateUser({password});
       if(error) throw error;
       authMode="login";
@@ -572,7 +572,7 @@ authForm.addEventListener("submit",async e=>{
       authError.style.color="#48e0b0";
       authError.textContent="Your password has been updated successfully. You can now sign in.";
     } else if(authMode==="signup"){
-      if(password.length<8) throw new Error("Password must be at least 8 characters.");
+      if(password.length<10) throw new Error("Password must be at least 10 characters.");
       const fullName=document.getElementById("authName").value.trim();
       if(!fullName) throw new Error("Please enter your name.");
       const {data,error}=await supabaseClient.auth.signUp({
