@@ -622,7 +622,8 @@ authForm.addEventListener("submit",async e=>{
   const button=document.getElementById("authSubmit"); button.disabled=true;
   try {
     if(authMode==="recovery"){
-      const passwordProblem=validateNexusPassword(password);\n      if(passwordProblem) throw new Error(passwordProblem);
+      const passwordProblem=validateNexusPassword(password);
+      if(passwordProblem) throw new Error(passwordProblem);
       const {error}=await supabaseClient.auth.updateUser({password});
       if(error) throw error;
       authMode="login";
@@ -639,7 +640,8 @@ authForm.addEventListener("submit",async e=>{
       authError.style.color="#48e0b0";
       authError.textContent="Your password has been updated successfully. You can now sign in.";
     } else if(authMode==="signup"){
-      const passwordProblem=validateNexusPassword(password);\n      if(passwordProblem) throw new Error(passwordProblem);
+      const passwordProblem=validateNexusPassword(password);
+      if(passwordProblem) throw new Error(passwordProblem);
       const fullName=document.getElementById("authName").value.trim();
       if(!fullName) throw new Error("Please enter your name.");
       const {data,error}=await supabaseClient.auth.signUp({
