@@ -316,17 +316,21 @@ export default {
         };
       }
 
-      const result = await env.AI.run(MODEL, {
+      const stream = await env.AI.run(MODEL, {
         messages,
-        max_tokens: 2048
+        max_tokens: 2048,
+        stream: true
       });
 
-      const reply =
-        result.choices?.[0]?.message?.content ||
-        result.response ||
-        "No response generated.";
-
-      return Response.json({ reply }, { headers: corsHeaders });
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          "X-Accel-Buffering": "no"
+        }
+      });
     } catch (error) {
       if (error.message === "REQUEST_TOO_LARGE") {
         return Response.json(
