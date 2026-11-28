@@ -483,6 +483,38 @@ function restoreLoginView(){
   document.getElementById("forgotPanel").style.display="none";
 }
 document.getElementById("forgotPasswordBtn").addEventListener("click",showForgotPanel);
+let recoveryCooldownTimer=null;
+function startRecoveryCooldown(seconds){
+  const end=Date.now()+Math.max(1,seconds)*1000;
+  const buttons=["forgotOtpChoice","forgotLinkChoice","resendRecoveryOtpBtn"];
+  const labels={forgotOtpChoice:"🔢 Email OTP code",forgotLinkChoice:"🔗 Password reset link",resendRecoveryOtpBtn:"Resend OTP"};
+  if(recoveryCooldownTimer) clearInterval(recoveryCooldownTimer);
+  const tick=()=>{
+    const left=Math.max(0,Math.ceil((end-Date.now())/1000));
+    buttons.forEach(id=>{
+      const button=document.getElementById(id);
+      if(!button) return;
+      button.disabled=left>0;
+      button.textContent=left>0?labels[id]+" · "+left+"s":labels[id];
+    });
+    if(left>0){
+      authError.style.color="#ffb36b";
+      authError.textContent="Please wait "+left+" seconds before requesting another recovery email.";
+    }else{
+      clearInterval(recoveryCooldownTimer);
+      recoveryCooldownTimer=null;
+      authError.style.color="#929bb7";
+      authError.textContent="You can request another recovery email now.";
+    }
+  };
+  tick();
+  recoveryCooldownTimer=setInterval(tick,250);
+}
+function getRecoveryCooldownSeconds(error){
+  const message=String(error?.message||error||"");
+  const match=message.match(/(?:after|in|wait)\\s*(\\d+)\\s*seconds?/i)||message.match(/(\\d+)\\s*seconds?/i);
+  return match?Number(match[1]):0;
+}
 async function sendRecoveryEmail(method){
   const email=document.getElementById("authEmail").value.trim();
   if(!email){authError.style.color="#ff9b9b";authError.textContent="Enter your email address first.";return;}
@@ -504,9 +536,15 @@ async function sendRecoveryEmail(method){
       authError.textContent="If the account exists, a recovery email has been sent. Check your inbox.";
     }
   }catch(error){
-    authError.style.color="#ff9b9b";
-    authError.textContent=error.message||"Could not send recovery email.";
-  }finally{buttons.forEach(b=>b.disabled=false);}
+    const wait=getRecoveryCooldownSeconds(error);
+    if(wait>0) startRecoveryCooldown(wait);
+    else{
+      authError.style.color="#ff9b9b";
+      authError.textContent=error.message||"Could not send recovery email.";
+    }
+  }finally{
+    if(!recoveryCooldownTimer) buttons.forEach(b=>b.disabled=false);
+  }
 }
 document.getElementById("forgotOtpChoice").addEventListener("click",()=>sendRecoveryEmail("otp"));
 document.getElementById("forgotLinkChoice").addEventListener("click",()=>sendRecoveryEmail("link"));
@@ -522,9 +560,15 @@ document.getElementById("resendRecoveryOtpBtn").addEventListener("click",async()
     authError.style.color="#48e0b0";
     authError.textContent="If the account exists, a new recovery email has been requested. Check your inbox and spam folder.";
   }catch(error){
-    authError.style.color="#ff9b9b";
-    authError.textContent=error.message||"Could not resend recovery email.";
-  }finally{button.disabled=false;}
+    const wait=getRecoveryCooldownSeconds(error);
+    if(wait>0) startRecoveryCooldown(wait);
+    else{
+      authError.style.color="#ff9b9b";
+      authError.textContent=error.message||"Could not resend recovery email.";
+    }
+  }finally{
+    if(!recoveryCooldownTimer) button.disabled=false;
+  }
 });
 document.getElementById("verifyRecoveryOtpBtn").addEventListener("click",async()=>{
   const email=document.getElementById("authEmail").value.trim();
