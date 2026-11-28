@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexus-ai-shell-v16";;;
+const CACHE_NAME = "nexus-ai-shell-v17";;;
 const APP_SHELL = [
   "./",
   "./index.html",
