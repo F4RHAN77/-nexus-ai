@@ -1151,7 +1151,9 @@ function concisePhotoQuery(section) {
 
 async function fetchArtifactImage(query) {
   try {
-    const response=await fetch(API_URL+"/image-search?q="+encodeURIComponent(query),{method:"GET",mode:"cors",cache:"force-cache"});
+    const {data:{session:activeSession}} = await supabaseClient.auth.getSession();
+    if(!activeSession?.access_token) return null;
+    const response=await fetch(API_URL+"/image-search?q="+encodeURIComponent(query),{method:"GET",mode:"cors",cache:"force-cache",headers:{"Authorization":"Bearer "+activeSession.access_token}});
     if(!response.ok) return null;
     const blob=await response.blob();
     if(!/^image\/(jpeg|png)$/i.test(blob.type)) return null;
@@ -1330,8 +1332,11 @@ async function sendMessage() {
   try {
     const history = chat.messages.slice(-15).map(msg => ({role:msg.role,content:msg.content || ""}));
     history[history.length-1] = {role:"user",content:messageText};
+    const {data:{session:activeSession}} = await supabaseClient.auth.getSession();
+    if(!activeSession?.access_token) throw new Error("Session expired. Please sign in again.");
     const response = await fetchWithRetry(API_URL,{
-      method:"POST",headers:{"Content-Type":"application/json"},
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+activeSession.access_token},
       body:JSON.stringify({message:messageText,messages:history,imageDataUrl:attachment?.dataUrl || null})
     });
     const data = await response.json().catch(() => ({}));
