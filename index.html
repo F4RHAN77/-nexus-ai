@@ -162,6 +162,10 @@ button,input,textarea{font:inherit}button{cursor:pointer}
 
 /* ChatGPT-inspired mobile-first conversation polish */
 .topbar{height:64px;padding:0 18px;border-bottom:1px solid rgba(255,255,255,.075);background:rgba(8,8,12,.94)}
+/* Keep header dropdown above the animated welcome/messages stacking layer */
+.topbar{position:relative;z-index:100;overflow:visible}
+.header-menu{z-index:1000}
+.messages{position:relative;z-index:0}
 .menu-btn,.header-icon-btn{width:46px;height:46px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.10);border-radius:50%;background:#202024;color:#f7f7f8;font-size:25px;line-height:1;padding:0;box-shadow:none}
 .menu-btn:hover,.header-icon-btn:hover{background:#303036;border-color:#ffffff30;transform:none}
 .top-left{gap:12px}.top-title{font-size:14px;letter-spacing:.2px}.top-status{font-size:10px}
