@@ -1329,9 +1329,13 @@ async function sendMessage() {
   try { await saveChat(chat); } catch(error) { console.error("Chat save error:",error); }
   renderChatList(); renderMessages(); addTyping();
 
+  const liveReply = {role:"assistant",content:""};
+  chat.messages.push(liveReply);
+  renderMessages();
+
   try {
-    const history = chat.messages.slice(-15).map(msg => ({role:msg.role,content:msg.content || ""}));
-    history[history.length-1] = {role:"user",content:messageText};
+    const history = chat.messages.slice(-16,-1).map(msg => ({role:msg.role,content:msg.content || ""}));
+    history.push({role:"user",content:messageText});
     const {data:{session:activeSession}} = await supabaseClient.auth.getSession();
     if(!activeSession?.access_token) throw new Error("Session expired. Please sign in again.");
     const response = await fetchWithRetry(API_URL,{
@@ -1339,20 +1343,66 @@ async function sendMessage() {
       headers:{"Content-Type":"application/json","Authorization":"Bearer "+activeSession.access_token},
       body:JSON.stringify({message:messageText,messages:history,imageDataUrl:attachment?.dataUrl || null})
     });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || data.message || "Server error: HTTP "+response.status);
-    const reply = data.reply || data.response || data.result || data.output;
-    if (typeof reply !== "string" || !reply.trim()) throw new Error("AI ne empty response diya. Worker response check karo.");
-    chat.messages.push({
-      role:"assistant",content:reply.trim(),
-      ...(artifactRequest ? {artifactType:artifactRequest.format,artifactTitle:artifactRequest.request.slice(0,90),artifactVisuals:!(/\b(no|nahi|nahin|mat|without|text[- ]only|dont|don't)\b/i.test(value)) && /\b(yes|haan|ha|zaroor|sure|add|visual|image|images)\b/i.test(value)} : {})
-    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || err.message || "Server error: HTTP "+response.status);
+    }
+
+    const messageNode = messagesEl.querySelector(".message.assistant:last-child .message-text");
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("Streaming is not supported by this browser.");
+    const decoder = new TextDecoder();
+    let buffer = "", fullReply = "", lastPaint = 0;
+    while (true) {
+      const {done,value:chunk} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(chunk,{stream:true});
+      const events = buffer.split("\n\n");
+      buffer = events.pop() || "";
+      for (const event of events) {
+        for (const line of event.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          try {
+            const part = JSON.parse(payload);
+            const token = part.choices?.[0]?.delta?.content ?? part.response ?? "";
+            if (typeof token === "string" && token) fullReply += token;
+          } catch {}
+        }
+      }
+      const now = Date.now();
+      if (messageNode && (now-lastPaint > 45 || !fullReply)) {
+        messageNode.innerHTML = renderMarkdown(fullReply);
+        scrollToBottom();
+        lastPaint = now;
+      }
+    }
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      for (const line of buffer.split("\n")) {
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        try {
+          const part = JSON.parse(payload);
+          const token = part.choices?.[0]?.delta?.content ?? part.response ?? "";
+          if (typeof token === "string") fullReply += token;
+        } catch {}
+      }
+    }
+    if (!fullReply.trim()) throw new Error("AI ne empty response diya. Worker streaming response check karo.");
+    liveReply.content = fullReply.trim();
+    if (artifactRequest) {
+      liveReply.artifactType = artifactRequest.format;
+      liveReply.artifactTitle = artifactRequest.request.slice(0,90);
+      liveReply.artifactVisuals = !(/\b(no|nahi|nahin|mat|without|text[- ]only|dont|don't)\b/i.test(value)) && /\b(yes|haan|ha|zaroor|sure|add|visual|image|images)\b/i.test(value);
+    }
   } catch(error) {
     console.error("NEXUS AI error:",error);
-    chat.messages.push({role:"assistant",content:"Sorry, NEXUS AI se connection nahi ho paya.\n\nError: "+(error.message || "Unknown error")+"\n\nInternet connection aur Cloudflare Worker check karein."});
+    liveReply.content = "Sorry, NEXUS AI se connection nahi ho paya.\n\nError: "+(error.message || "Unknown error")+"\n\nInternet connection aur Cloudflare Worker check karein.";
   }
 
-  document.getElementById("typingIndicator")?.remove();
   chat.updatedAt = Date.now();
   try { await saveChat(chat); } catch(error) { console.error("Chat save error:",error); }
   renderChatList(); renderMessages();
