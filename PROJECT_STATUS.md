@@ -25,18 +25,25 @@ Last audited: 2026-11-28
 - Revoked unnecessary `TRUNCATE`, `REFERENCES`, and `TRIGGER` privileges from `anon`, `authenticated`, and `service_role` on `public.chats`.
 - Added a composite index on `(user_id, updated_at DESC)` for the chat-history query.
 - Verified RLS remains enabled, the owner policy remains present, the extra privileges are gone, and the chat rows remain present.
+- Re-audited chat ownership: the single `Users can manage their own chats` policy applies to authenticated users and checks `auth.uid() = user_id` for both USING and WITH CHECK.
+- Confirmed there are no chat rows with a null owner.
+- Hardened Worker source code to require a valid Supabase access token for AI requests and image-search requests, restrict browser CORS to the GitHub Pages origin, and apply the existing rate limiter to image-search requests too.
+- Updated the frontend to send the signed-in Supabase access token to the Worker for AI and image requests.
+- Bumped the service-worker cache version so deployed clients fetch the updated frontend.
 - Security advisor still reports Leaked Password Protection disabled.
 - Performance advisor reports the new index as unused immediately after creation; this is informational and may change after normal traffic.
 
 ## Owner actions still required
+5. Deploy the updated `worker.js` to the Cloudflare Worker `nexus-ai`. The GitHub source has been updated, but the Worker deployment has NOT been performed from this connection.
+6. After deploying the Worker, test signed-in AI chat and image search. Confirm unauthenticated requests return HTTP 401 and the GitHub Pages site still works.
 1. Open the Supabase project dashboard and review Authentication password settings. Enable leaked-password protection if the project plan supports it. Supabase documents this feature as available on Pro and above:
    https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
 2. Verify the signup confirmation and password-recovery email templates. The current frontend offers signup OTP, recovery OTP, and reset-link flows, but the actual delivered email appearance and token format must be tested with a real inbox.
 3. Configure/verify custom SMTP if NEXUS AI is going to send production emails. Supabase recommends custom SMTP for production:
    https://supabase.com/docs/guides/auth#email-sending
 4. Test sign-up, email OTP, login, logout, recovery OTP, reset link, and password update using a test account.
-5. Test chat isolation with two separate test accounts (each account should only see its own chat history).
-6. Test the updated website on mobile and desktop after GitHub Pages finishes publishing.
+7. Test chat isolation with two separate test accounts (each account should only see its own chat history).
+8. Test the updated website on mobile and desktop after GitHub Pages finishes publishing.
 
 ## Notes
 - Never put a Supabase service-role key, Cloudflare API token, database password, or SMTP password in this repository or in frontend code.
