@@ -273,6 +273,43 @@ button,input,textarea{font:inherit}button{cursor:pointer}
     </section>
   </form>
 </div>
+<script>
+/* Independent login UI fallback: these controls must remain responsive even
+   if a later application script or third-party CDN fails during startup. */
+(function(){
+  const byId=id=>document.getElementById(id);
+  function showMode(mode){
+    const choice=byId("authChoice");
+    if(choice) choice.style.display="none";
+    const back=byId("backToAuthChoice"); if(back) back.style.display="block";
+    const name=byId("authNameField"); if(name) name.style.display=mode==="signup"?"block":"none";
+    ["authEmail","authPassword","passwordToggle","authSubmit"].forEach(id=>{const e=byId(id);if(e)e.style.display="";});
+    const hint=byId("passwordHint"); if(hint) hint.style.display=mode==="signup"?"block":"none";
+    const emailLabel=document.querySelector('label[for="authEmail"]'); if(emailLabel)emailLabel.style.display="";
+    const passLabel=document.querySelector('label[for="authPassword"]'); if(passLabel)passLabel.style.display="";
+    const submit=byId("authSubmit"); if(submit)submit.textContent=mode==="signup"?"Create Account":"Sign In";
+    const forgot=byId("forgotPasswordBtn"); if(forgot)forgot.style.display=mode==="login"?"block":"none";
+    const nameInput=byId("authName"); if(nameInput)nameInput.required=mode==="signup";
+    const password=byId("authPassword"); if(password)password.autocomplete=mode==="signup"?"new-password":"current-password";
+    const subtitle=byId("authSubtitle"); if(subtitle)subtitle.textContent=mode==="signup"?"Create your free account to get started.":"Welcome back! Sign in to continue.";
+    window.__nexusFallbackAuthMode=mode;
+  }
+  document.addEventListener("click",function(event){
+    const target=event.target.closest("button");
+    if(!target)return;
+    if(target.id==="chooseSignup"){showMode("signup");}
+    else if(target.id==="chooseLogin"){showMode("login");}
+    else if(target.id==="backToAuthChoice"){
+      if(byId("authChoice"))byId("authChoice").style.display="grid";
+      if(byId("backToAuthChoice"))byId("backToAuthChoice").style.display="none";
+      ["authNameField","authEmail","authPassword","passwordToggle","passwordHint","authSubmit","authToggle","forgotPasswordBtn"].forEach(id=>{const e=byId(id);if(e)e.style.display="none";});
+      document.querySelectorAll('label[for="authEmail"],label[for="authPassword"]').forEach(e=>e.style.display="none");
+    } else if(target.id==="passwordToggle"){
+      const input=byId("authPassword"); if(input){const visible=input.type==="password";input.type=visible?"text":"password";target.textContent=visible?"Hide":"👁 Show";target.setAttribute("aria-pressed",String(visible));target.setAttribute("aria-label",visible?"Hide password":"Show password");}
+    }
+  },true);
+})();
+</script>
 <div class="app" id="nexusApp" style="visibility:hidden">
 
   <aside class="sidebar" id="sidebar">
