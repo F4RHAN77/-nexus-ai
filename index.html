@@ -305,7 +305,7 @@ button,input,textarea{font:inherit}button{cursor:pointer}
       ["authNameField","authEmail","authPassword","passwordToggle","passwordHint","authSubmit","authToggle","forgotPasswordBtn"].forEach(id=>{const e=byId(id);if(e)e.style.display="none";});
       document.querySelectorAll('label[for="authEmail"],label[for="authPassword"]').forEach(e=>e.style.display="none");
     } else if(target.id==="passwordToggle"){
-      const input=byId("authPassword"); if(input){const visible=input.type==="password";input.type=visible?"text":"password";target.textContent=visible?"Hide":"👁 Show";target.setAttribute("aria-pressed",String(visible));target.setAttribute("aria-label",visible?"Hide password":"Show password");}
+      const input=byId("authPassword"); if(input){const visible=input.type==="password";input.type=visible?"text":"password";target.textContent=visible?"Hide":"👁 Show";target.setAttribute("aria-pressed",String(visible));target.setAttribute("aria-label",visible?"Hide password":"Show password");event.stopImmediatePropagation();}
     }
   },true);
 })();
